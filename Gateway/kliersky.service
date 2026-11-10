@@ -1,0 +1,27 @@
+[Unit]
+Description=KlierSky private weather gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=kliersky
+Group=kliersky
+WorkingDirectory=/opt/kliersky
+EnvironmentFile=/etc/kliersky/gateway.env
+ExecStart=/usr/bin/python3 /opt/kliersky/server.py
+Restart=on-failure
+RestartSec=5
+StateDirectory=kliersky
+StateDirectoryMode=0700
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/kliersky
+CapabilityBoundingSet=
+MemoryMax=256M
+TasksMax=32
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

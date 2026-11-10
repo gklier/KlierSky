@@ -1,0 +1,19 @@
+name: Bug report
+description: Help improve KlierSky
+body:
+  - type: markdown
+    attributes:
+      value: Do not include API keys, access tokens, pairing codes or private location logs.
+  - type: input
+    id: version
+    attributes:
+      label: App version and iOS version
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What happened?
+      description: Include steps, expected behavior and the source label. A screenshot is helpful after checking it for private information.
+    validations:
+      required: true

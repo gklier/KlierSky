@@ -1,0 +1,64 @@
+// !$*UTF8*$!
+{archiveVersion = 1; classes = {}; objectVersion = 56; objects = {
+A8815169B5371DDD522D3F60 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetStorage.swift; sourceTree = "<group>"; };
+DA011881E08A3928E0CC1CEC = {isa = PBXBuildFile; fileRef = A8815169B5371DDD522D3F60; };
+8E6A7D5D50DC8B086042C4D8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KlierSkyWidgets.swift; sourceTree = "<group>"; };
+3747C72769887DE43CB42C76 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+C92DD1663907A79AA467B5F8 = {isa = PBXGroup; path = "KlierSkyWidgets"; sourceTree = "<group>"; children = (8E6A7D5D50DC8B086042C4D8,3747C72769887DE43CB42C76); };
+F231F6FE549E641636571AA6 = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; path = KlierSkyWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+FF5C2717FCB4EB46585F1E3C = {isa = PBXBuildFile; fileRef = A8815169B5371DDD522D3F60; };
+470B38250BCEFB24EAFAEE69 = {isa = PBXBuildFile; fileRef = 1EA18FBCC75071A03939E009; };
+DDA92C463708ABE5A89CD95B = {isa = PBXBuildFile; fileRef = 8E6A7D5D50DC8B086042C4D8; };
+2D81737A052BBAAD15A6D3C1 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (FF5C2717FCB4EB46585F1E3C,470B38250BCEFB24EAFAEE69,DDA92C463708ABE5A89CD95B); runOnlyForDeploymentPostprocessing = 0; };
+7683A40AB86681224A5404DF = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+36D11A4B2FBE7E0EEFFCE4F5 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {PRODUCT_BUNDLE_IDENTIFIER = com.klier.KlierSky.widgets; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; SKIP_INSTALL = YES; APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = ""; MARKETING_VERSION = 0.3.1; CURRENT_PROJECT_VERSION = 7; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = "KlierSkyWidgets/Info.plist"; INFOPLIST_KEY_CFBundleDisplayName = "KlierSky"; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;}; };
+7B96878BE253967244C8F949 = {isa = XCBuildConfiguration; name = Release; buildSettings = {PRODUCT_BUNDLE_IDENTIFIER = com.klier.KlierSky.widgets; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; SKIP_INSTALL = YES; APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = ""; MARKETING_VERSION = 0.3.1; CURRENT_PROJECT_VERSION = 7; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = "KlierSkyWidgets/Info.plist"; INFOPLIST_KEY_CFBundleDisplayName = "KlierSky"; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";}; };
+54C34156A8D1870FEB43616E = {isa = XCConfigurationList; buildConfigurations = (36D11A4B2FBE7E0EEFFCE4F5,7B96878BE253967244C8F949); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+704A160D8849979DE00DDB64 = {isa = PBXNativeTarget; name = KlierSkyWidgets; buildConfigurationList = 54C34156A8D1870FEB43616E; buildPhases = (2D81737A052BBAAD15A6D3C1,7683A40AB86681224A5404DF); buildRules = (); dependencies = (); productName = KlierSkyWidgets; productReference = F231F6FE549E641636571AA6; productType = "com.apple.product-type.app-extension"; };
+5632E9FDC70F2DC0B2D4E983 = {isa = PBXContainerItemProxy; containerPortal = 98F54143AB4E86B28C3AFEE0; proxyType = 1; remoteGlobalIDString = 704A160D8849979DE00DDB64; remoteInfo = KlierSkyWidgets; };
+4DA75641BEA61A776F463463 = {isa = PBXTargetDependency; target = 704A160D8849979DE00DDB64; targetProxy = 5632E9FDC70F2DC0B2D4E983; };
+4DBB527DB920B4F3623D4860 = {isa = PBXBuildFile; fileRef = F231F6FE549E641636571AA6; settings = {ATTRIBUTES = (RemoveHeadersOnCopy); }; };
+01138FB9EB584A0E17CB6033 = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = (4DBB527DB920B4F3623D4860); name = "Embed App Extensions"; runOnlyForDeploymentPostprocessing = 0; };
+
+1172510DBB07679EBDBB3B41 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastDetails.swift; sourceTree = "<group>"; };
+0B4E4B2CFCBC00082A083A77 = {isa = PBXBuildFile; fileRef = 1172510DBB07679EBDBB3B41; };
+AABBCCDD0011223344556601 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+AABBCCDD0011223344556602 = {isa = PBXBuildFile; fileRef = AABBCCDD0011223344556601; };
+AABBCCDD0011223344556603 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (AABBCCDD0011223344556602); runOnlyForDeploymentPostprocessing = 0; };
+
+604C4C66631E69E12F145F35 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestingPanels.swift; sourceTree = "<group>"; };
+258363B69566153A8D3892E5 = {isa = PBXBuildFile; fileRef = 604C4C66631E69E12F145F35; };
+1E953D5C0091E0B77E97CF9F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveStore.swift; sourceTree = "<group>"; };
+DB488DB21451798903046F1D = {isa = PBXBuildFile; fileRef = 1E953D5C0091E0B77E97CF9F; };
+8D491A88730376560988E298 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveCore.swift; sourceTree = "<group>"; };
+55FE8D743D0545787F2099FE = {isa = PBXBuildFile; fileRef = 8D491A88730376560988E298; };
+AA1926C95BC13EB08C847086 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServices.swift; sourceTree = "<group>"; };
+E825BDE873AEE1AA358DBE96 = {isa = PBXBuildFile; fileRef = AA1926C95BC13EB08C847086; };
+9727B9EED8ACD2EE46E136A0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+E11030640FCC0E9D6783BF78 = {isa = PBXBuildFile; fileRef = 9727B9EED8ACD2EE46E136A0; };
+70E006813B82CAAA1F93A1D7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KlierSkyApp.swift; sourceTree = "<group>"; };
+F2B44DA7569736BB34F609F2 = {isa = PBXBuildFile; fileRef = 70E006813B82CAAA1F93A1D7; };
+38793A3F5E52A0036DB4BB0D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationSearch.swift; sourceTree = "<group>"; };
+D656662E74839085F823D6A5 = {isa = PBXBuildFile; fileRef = 38793A3F5E52A0036DB4BB0D; };
+C8F6F227435F55BB1741C85B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarView.swift; sourceTree = "<group>"; };
+82ED129F7623A0AB15E5E284 = {isa = PBXBuildFile; fileRef = C8F6F227435F55BB1741C85B; };
+1EA18FBCC75071A03939E009 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Weather.swift; sourceTree = "<group>"; };
+D9853ECE0A815B6990247DE0 = {isa = PBXBuildFile; fileRef = 1EA18FBCC75071A03939E009; };
+7D1043473D55BFA90E8530D3 = {isa = PBXFileReference; explicitFileType = wrapper.application; path = KlierSky.app; sourceTree = BUILT_PRODUCTS_DIR; };
+F27FEDE2220BCD326AEE3E86 = {isa = PBXGroup; path = KlierSky; sourceTree = "<group>"; children = (A8815169B5371DDD522D3F60,1172510DBB07679EBDBB3B41,AABBCCDD0011223344556601,604C4C66631E69E12F145F35,1E953D5C0091E0B77E97CF9F,8D491A88730376560988E298,AA1926C95BC13EB08C847086,9727B9EED8ACD2EE46E136A0,70E006813B82CAAA1F93A1D7,38793A3F5E52A0036DB4BB0D,C8F6F227435F55BB1741C85B,1EA18FBCC75071A03939E009); };
+F6C433ACAC2A27CC06A06258 = {isa = PBXGroup; name = Products; sourceTree = "<group>"; children = (F231F6FE549E641636571AA6,7D1043473D55BFA90E8530D3); };
+DC76E9F0C0006E8F919E0C51 = {isa = PBXGroup; sourceTree = "<group>"; children = (C92DD1663907A79AA467B5F8,F27FEDE2220BCD326AEE3E86,F6C433ACAC2A27CC06A06258); };
+E03F10FAEE0305E445F4BAEA = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/maplibre/maplibre-gl-native-distribution"; requirement = {kind = revision; revision = 1eb8b2dca57bec9cf9f19fc3a398773cf3ed0e97; }; };
+9D062BAFFF17BA8B9A1215C4 = {isa = XCSwiftPackageProductDependency; package = E03F10FAEE0305E445F4BAEA; productName = MapLibre; };
+E03EB618E90D617AB8F6A5B0 = {isa = PBXBuildFile; productRef = 9D062BAFFF17BA8B9A1215C4; };
+BCE16DD0260827ECF338C787 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (DA011881E08A3928E0CC1CEC,0B4E4B2CFCBC00082A083A77,258363B69566153A8D3892E5,DB488DB21451798903046F1D,55FE8D743D0545787F2099FE,E825BDE873AEE1AA358DBE96,E11030640FCC0E9D6783BF78,F2B44DA7569736BB34F609F2,D656662E74839085F823D6A5,82ED129F7623A0AB15E5E284,D9853ECE0A815B6990247DE0); runOnlyForDeploymentPostprocessing = 0; };
+7561BFB015D8F536760CB671 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (E03EB618E90D617AB8F6A5B0); runOnlyForDeploymentPostprocessing = 0; };
+369E70E1EE7A07C74E211771 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; PRODUCT_BUNDLE_IDENTIFIER = com.klier.KlierSky; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; TARGETED_DEVICE_FAMILY = "1,2"; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = "KlierSky/Info.plist"; ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; INFOPLIST_KEY_UILaunchScreen_Generation = YES; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; INFOPLIST_KEY_CFBundleDisplayName = KlierSky; CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = "";  INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "KlierSky uses your approximate location to request local forecasts when you choose Use my current location."; MARKETING_VERSION = 0.3.1; CURRENT_PROJECT_VERSION = 7;}; };
+76F7908EA5F01C80B532443B = {isa = XCBuildConfiguration; name = Debug; buildSettings = {SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; CLANG_ENABLE_MODULES = YES; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; };
+502D350B1D76FA1259FFDE36 = {isa = XCBuildConfiguration; name = Release; buildSettings = {PRODUCT_BUNDLE_IDENTIFIER = com.klier.KlierSky; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; TARGETED_DEVICE_FAMILY = "1,2"; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = "KlierSky/Info.plist"; ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; INFOPLIST_KEY_UILaunchScreen_Generation = YES; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; INFOPLIST_KEY_CFBundleDisplayName = KlierSky; CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = "";  INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "KlierSky uses your approximate location to request local forecasts when you choose Use my current location."; MARKETING_VERSION = 0.3.1; CURRENT_PROJECT_VERSION = 7;}; };
+E2E61841BDF6E60989E8C331 = {isa = XCBuildConfiguration; name = Release; buildSettings = {CLANG_ENABLE_MODULES = YES; SWIFT_OPTIMIZATION_LEVEL = "-O"; }; };
+EF3ECCCF258FA062C5C6521A = {isa = XCConfigurationList; buildConfigurations = (369E70E1EE7A07C74E211771,502D350B1D76FA1259FFDE36); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+01DF1D3A7F02866ECA6BB742 = {isa = XCConfigurationList; buildConfigurations = (76F7908EA5F01C80B532443B,E2E61841BDF6E60989E8C331); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+0E8A3AD980EC179856012B7E = {isa = PBXNativeTarget; name = KlierSky; buildConfigurationList = EF3ECCCF258FA062C5C6521A; buildPhases = (BCE16DD0260827ECF338C787,7561BFB015D8F536760CB671,AABBCCDD0011223344556603,01138FB9EB584A0E17CB6033); buildRules = (); dependencies = (4DA75641BEA61A776F463463); packageProductDependencies = (9D062BAFFF17BA8B9A1215C4); productName = KlierSky; productReference = 7D1043473D55BFA90E8530D3; productType = "com.apple.product-type.application"; };
+98F54143AB4E86B28C3AFEE0 = {isa = PBXProject; attributes = {LastUpgradeCheck = 2700;}; buildConfigurationList = 01DF1D3A7F02866ECA6BB742; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; knownRegions = (en,Base); mainGroup = DC76E9F0C0006E8F919E0C51; productRefGroup = F6C433ACAC2A27CC06A06258; projectDirPath = ""; projectRoot = ""; packageReferences = (E03F10FAEE0305E445F4BAEA); targets = (0E8A3AD980EC179856012B7E,704A160D8849979DE00DDB64); };
+}; rootObject = 98F54143AB4E86B28C3AFEE0; }
