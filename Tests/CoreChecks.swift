@@ -30,6 +30,20 @@ import Foundation
         precondition(timeline.last!.validTime.timeIntervalSince(now) >= 12 * 3600)
         precondition(timeline[1].validTime.timeIntervalSince(timeline[0].validTime) == 300)
         precondition(ForecastTimeline.select([f], now: now).isEmpty)
-        print("PASS: live forecast/radar decoding, valid probabilities, past-only observation times, stale detection, frame wire format")
+        // --- Provider switching: the label always names the source really shown ---
+        let both = ["Open-Meteo", "Foreca"]
+        precondition(ProviderChoice.pick(available: both, preferred: "Foreca", forecaConnected: true) == .init(source: "Foreca", status: "Foreca", isFallback: false))
+        precondition(ProviderChoice.pick(available: both, preferred: "Open-Meteo", forecaConnected: true) == .init(source: "Open-Meteo", status: "Open-Meteo", isFallback: false))
+        // Foreca was expected and failed: Open-Meteo is shown and called a fallback.
+        precondition(ProviderChoice.pick(available: ["Open-Meteo"], preferred: "Foreca", forecaConnected: true) == .init(source: "Open-Meteo", status: "Open-Meteo · fallback", isFallback: true))
+        // Foreca was never reachable for this install: not a failure, but still said plainly.
+        precondition(ProviderChoice.pick(available: ["Open-Meteo"], preferred: "Foreca", forecaConnected: false) == .init(source: "Open-Meteo", status: "Open-Meteo · Foreca not connected", isFallback: false))
+        // Open-Meteo preferred but down: Foreca is the fallback, and labelled as Foreca.
+        precondition(ProviderChoice.pick(available: ["Foreca"], preferred: "Open-Meteo", forecaConnected: true) == .init(source: "Foreca", status: "Foreca · fallback", isFallback: true))
+        // Nothing arrived: a saved forecast keeps its own source name; with nothing saved the app says offline.
+        precondition(ProviderChoice.pick(available: [], preferred: "Foreca", forecaConnected: true, saved: "Foreca") == .init(source: nil, status: "Foreca · saved", isFallback: false))
+        precondition(ProviderChoice.pick(available: [], preferred: "Foreca", forecaConnected: true, saved: "Open-Meteo").status == "Open-Meteo · saved")
+        precondition(ProviderChoice.pick(available: [], preferred: "Foreca", forecaConnected: false) == .init(source: nil, status: "Offline", isFallback: false))
+        print("PASS: recorded forecast/radar decoding, valid probabilities, past-only observation times, stale detection, frame wire format, provider switching and fallback labels")
     }
 }

@@ -1,0 +1,1 @@
+Read Docs/CLOUD-CONTINUATION.md before work. Follow all product, security, billing and release constraints there. Use Fable 5.2 free allowance only. Keep Docs/PRODUCT-REQUIREMENTS.md current. No production deployment or model substitution.
