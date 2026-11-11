@@ -17,6 +17,7 @@ struct SettingsView: View {
     @AppStorage("showVisibility") private var showVisibility = true
     @AppStorage("showSun") private var showSun = true
     @AppStorage("preferredProvider") private var preferred = "Foreca"
+    @AppStorage("forecastMode") private var forecastMode = "blend"
     @AppStorage("modelFuturecast") private var modelFuturecast = true
     @State private var checking = false
     private var access: GatewayAccess { GatewayAccess.shared }
@@ -43,11 +44,16 @@ struct SettingsView: View {
                     Text(access.detail).font(.footnote).foregroundStyle(.secondary)
                     if access.state == .revoked { Button(checking ? "Asking…" : "Ask for access again") { check(again: true) }.disabled(checking) }
                     else if !access.state.canFetch { Button(checking ? "Checking…" : "Check now") { check(again: false) }.disabled(checking) }
-                    Picker("Preferred forecast", selection: $preferred) { Text("Foreca").tag("Foreca"); Text("Open-Meteo").tag("Open-Meteo") }
-                        .onChange(of: preferred) { Task { await model.refresh() } }
+                    Picker("Forecast", selection: $forecastMode) { Text("Blend of all sources").tag("blend"); Text("One source").tag("single") }
+                        .onChange(of: forecastMode) { Task { await model.refresh() } }
+                    if forecastMode == "single" {
+                        Picker("Preferred source", selection: $preferred) { Text("Foreca").tag("Foreca"); Text("Open-Meteo").tag("Open-Meteo") }
+                            .onChange(of: preferred) { Task { await model.refresh() } }
+                    }
+                    if let blend = model.forecast?.blend { Text(blend.shares).font(.footnote).foregroundStyle(.secondary) }
                     LabeledContent("Showing now", value: model.providerStatus)
                 } header: { Text("Forecast source") } footer: {
-                    Text("KlierSky connects to its weather service by itself. There is nothing to enter: each iPhone gets its own read-only access that the owner can remove.")
+                    Text("The blend is a weighted average of every source KlierSky can reach: Foreca when connected, Open-Meteo, the US National Weather Service, MET Norway and several global weather models. Sources ranked more reliable count for more. The ranking starts from a fixed order and is replaced by measured results once Adaptive weather has scored enough forecasts. KlierSky connects to its Foreca service by itself: each iPhone gets its own read-only access that the owner can remove.")
                 }
                 Section("On the main screen") {
                     Toggle("Daily forecast", isOn: $showDaily)
@@ -62,7 +68,7 @@ struct SettingsView: View {
                 Section {
                     Toggle("Model futurecast (HRRR)", isOn: $modelFuturecast)
                 } header: { Text("Map") } footer: {
-                    Text("Radar shows RainViewer observations. Futurecast shows NOAA's HRRR model for the contiguous US, loaded only when you open that tab. Each model run covers 18 hours and is a few hours old when published, so expect roughly 14 to 16 hours ahead. It is a model forecast, not radar.")
+                    Text("The map opens on one timeline: past RainViewer radar up to now, then the model forecast, with a mark where observation ends. Futurecast shows NOAA's HRRR model for the contiguous US, loaded only when you open that tab. Each model run covers 18 hours and is a few hours old when published, so expect roughly 14 to 16 hours ahead. It is a model forecast, not radar.")
                 }
                 Section {
                     Text("Add KlierSky from the Home Screen or Lock Screen widget gallery, then edit the widget to use your location or a city.").font(.footnote)

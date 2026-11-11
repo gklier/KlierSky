@@ -29,6 +29,31 @@ import FoundationNetworking
             guard let first = frames.first, Set(frames.map(\.issuedTime)).count == 1 else { throw URLError(.cannotParseResponse) }
             return "one run, \(Int(Date().timeIntervalSince(first.issuedTime) / 60)) min old, \(frames.count) future 15-minute frames, look-ahead \(HRRRFuturecast.lookAheadMinutes(frames)) min, \(ForecastTimeline.select(frames).count) frames after thinning"
         }
+        var series: [SourceSeries] = []
+        await report("MET Norway forecast") {
+            let norway = try METNorway.decode(try await Network.data(METNorway.url(place), timeout: 15))
+            guard norway.hours.count >= 24, norway.current != nil else { throw URLError(.cannotParseResponse) }
+            series.append(norway)
+            return "\(norway.hours.count) hourly values, current conditions present"
+        }
+        await report("NWS hourly forecast") {
+            let nws = try await NWSHourly.load(place, timeout: 15)
+            guard nws.hours.count >= 24 else { throw URLError(.cannotParseResponse) }
+            series.append(nws)
+            return "\(nws.hours.count) hourly values"
+        }
+        await report("Global models via Open-Meteo") {
+            let models = try OpenMeteoModels.decode(try await Network.data(OpenMeteoModels.url(place), timeout: 15))
+            guard !models.isEmpty else { throw URLError(.cannotParseResponse) }
+            series += models
+            return models.map { "\($0.source) \($0.hours.count) h" }.joined(separator: ", ")
+        }
+        await report("Blend of the free sources") {
+            let weights = Blend.startingWeights(series.map(\.source))
+            guard let blended = Blend.combine(series, weights: { _ in weights }), let info = blended.blend else { throw URLError(.cannotParseResponse) }
+            _ = try blended.validated()
+            return "\(info.shares); now \(Int(blended.current.temperature_2m.rounded()))°F, \(blended.hours.count) hours"
+        }
         await report("NWS active alerts") {
             var request = URLRequest(url: NWSAlerts.activeURL(latitude: place.latitude, longitude: place.longitude), timeoutInterval: 15)
             request.setValue(Network.userAgent, forHTTPHeaderField: "User-Agent"); request.setValue("application/geo+json", forHTTPHeaderField: "Accept")

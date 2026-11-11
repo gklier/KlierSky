@@ -22,12 +22,21 @@ struct AccuracyPanel: View {
                 Toggle("Also collect in the background", isOn: $background).disabled(!collect)
                     .onChange(of: background) { if background { BackgroundCollection.schedule() } else { BackgroundCollection.cancel() } }
             } header: { Text("Collection") } footer: {
-                Text("Off by default. When on, KlierSky saves each forecast it shows for this location and later compares it with quality-controlled temperature readings from the nearest US weather station. Saved forecasts and scores stay on this iPhone, are excluded from backups and are deleted after 30 days. The station check sends the rounded location to the US National Weather Service; nothing is sent to the KlierSky server. Background collection runs only when iOS allows it and is not guaranteed.")
+                Text("Off by default. When on, KlierSky saves each source's forecast for this location and later compares it with quality-controlled temperature readings from the nearest US weather station. Saved forecasts and scores stay on this iPhone, are excluded from backups and are deleted after 30 days. The station check sends the rounded location to the US National Weather Service; nothing is sent to the KlierSky server. Background collection runs only when iOS allows it and is not guaranteed.")
             }
             Section {
                 Toggle("Use the better-verified temperature", isOn: $enabled)
-            } header: { Text("Adaptive temperature") } footer: {
-                Text("Changes hourly temperatures only, and only for a lead-time group where both sources were scored on at least 20 of the same hours across 5 or more days, one was at least 0.5°F closer on average, and that choice also did at least 0.25°F better on later hours it had not seen. These are safeguards on a small sample, not proof of better accuracy. Otherwise your preferred source is shown unchanged. Rain chance, amounts, symbols and current conditions never adapt.")
+            } header: { Text("Single-source mode") } footer: {
+                Text("Applies only when Settings is set to one source instead of the blend. Changes hourly temperatures only, and only for a lead-time group where both sources were scored on at least 20 of the same hours across 5 or more days, one was at least 0.5°F closer on average, and that choice also did at least 0.25°F better on later hours it had not seen. These are safeguards on a small sample, not proof of better accuracy. Otherwise your preferred source is shown unchanged. Rain chance, amounts, symbols and current conditions never adapt.")
+            }
+            if let blend = model.forecast?.blend {
+                Section {
+                    ForEach(blend.members, id: \.source) { member in
+                        LabeledContent(member.source, value: "\(Int((member.share * 100).rounded()))% · \(member.measured ? "measured" : "starting weight")")
+                    }
+                } header: { Text("Blend weights, next 6 hours") } footer: {
+                    Text("Shares of the weighted average shown on the main screen. A starting weight is a fixed ranking, not a measurement. A measured weight scales that ranking by how close the source's saved forecasts came to the station, on at least 20 shared hours over 5 days, limited to four times up or down. Nothing here shows that the blend is more accurate than a single source.")
+                }
             }
             Section("Evidence for \(place.name)") {
                 LabeledContent("Station", value: store.station(for: place).map { "\($0.id) · \(String(format: "%.1f", $0.distanceKM)) km away" } ?? "Not chosen yet")

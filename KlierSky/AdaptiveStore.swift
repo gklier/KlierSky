@@ -20,14 +20,31 @@ import CoreLocation
     @ObservationIgnored private var checking = false
     init() { archive = (try? JSONDecoder().decode(Archive.self, from: Data(contentsOf: AppFiles.url("accuracy.json")))) ?? Archive(captures: [], samples: []) }
 
-    func capture(_ forecast: Forecast, at place: Place, time: Date = Date()) {
-        let provider = forecast.source ?? "Open-Meteo"
-        let recent = archive.captures.filter { $0.placeID == place.id && $0.provider == provider && time.timeIntervalSince($0.capturedAt) < 1800 }
-        guard recent.isEmpty else { return }
-        let existing = Set(archive.captures.map(\.evidenceKey))
-        archive.captures += forecast.hours.filter { $0.time > time.addingTimeInterval(1800) }.map { ForecastCapture(id: UUID(), placeID: place.id, provider: provider, capturedAt: time, hour: $0) }.filter { !existing.contains($0.evidenceKey) }
-        archive.captures = Array(archive.captures.filter { time.timeIntervalSince($0.capturedAt) < 30 * 86400 }.suffix(12000))
+    /// Saves what each source forecast for the coming hours, so it can be scored later. Only when the
+    /// user has turned evidence collection on. Temperature is the only value kept and scored.
+    func capture(_ all: [SourceSeries], at place: Place, time: Date = Date()) {
+        guard UserDefaults.standard.bool(forKey: "verifyStations") else { return }
+        var existing = Set(archive.captures.map(\.evidenceKey))
+        var added = false
+        for series in all {
+            let provider = series.source
+            // At most one snapshot per source every half hour.
+            guard !archive.captures.contains(where: { $0.placeID == place.id && $0.provider == provider && time.timeIntervalSince($0.capturedAt) < 1800 }) else { continue }
+            for (target, hour) in series.hours {
+                guard target > time.addingTimeInterval(1800), target <= time.addingTimeInterval(7 * 86400), let temperature = hour.temperature, temperature.isFinite else { continue }
+                // Rain and chance are placeholders here: this record is only ever used to score temperature.
+                let capture = ForecastCapture(id: UUID(), placeID: place.id, provider: provider, capturedAt: time, hour: Hour(time: target, temperature: temperature, rain: 0, chance: 0, code: nil, daylight: true))
+                if existing.insert(capture.evidenceKey).inserted { archive.captures.append(capture); added = true }
+            }
+        }
+        guard added else { return }
+        archive.captures = Array(archive.captures.filter { time.timeIntervalSince($0.capturedAt) < 30 * 86400 }.suffix(30000))
         save()
+    }
+    func capture(_ forecast: Forecast, at place: Place, time: Date = Date()) { capture([SourceSeries(forecast)], at: place, time: time) }
+    /// Blend weights for one lead-time group at this place: the starting ranking, scaled by scored forecasts where there are enough.
+    func blendWeights(sources: [String], place: Place, bucket: Int) -> AdaptiveEngine.BlendWeights {
+        AdaptiveEngine.blendWeights(sources: sources, placeID: place.id, bucket: bucket, samples: archive.samples)
     }
     func clear() { archive = Archive(captures: [], samples: []); decisions = [:]; save(); status = "Local evidence cleared. Your preferred source is in use." }
     private func save() { if let data = try? JSONEncoder().encode(archive) { try? data.write(to: AppFiles.url("accuracy.json"), options: [.atomic, .completeFileProtectionUnlessOpen]) } }
@@ -50,7 +67,8 @@ import CoreLocation
         return value
     }
     func selectedHours(base: Forecast, alternatives: [Forecast], place: Place, enabled: Bool) -> [Hour] {
-        guard enabled, !alternatives.isEmpty else { return base.hours }
+        // A blend already weighs every source; the single-source switch below applies only without one.
+        guard enabled, base.blend == nil, !alternatives.isEmpty else { return base.hours }
         let all = [base] + alternatives
         let baseline = base.source ?? "Open-Meteo"
         let providers = Array(Set(all.map { $0.source ?? "Open-Meteo" })).sorted()
@@ -160,8 +178,11 @@ enum BackgroundCollection {
         let token = GatewayAccess.shared.bearer     // existing access only; never enrolls from the background
         async let open = capture { try await Forecast.load(place, timeout: 12) }
         async let foreca: Result<Forecast, Error>? = token != nil ? await capture { try await Gateway.forecast(place, token: token!) } : nil
-        if case .success(var value) = await open { value.source = "Open-Meteo"; AdaptiveStore.shared.capture(value, at: place) }
-        if case .success(var value)? = await foreca { value.source = "Foreca"; AdaptiveStore.shared.capture(value, at: place) }
+        var series: [SourceSeries] = []
+        if case .success(var value) = await open { value.source = "Open-Meteo"; series.append(SourceSeries(value)) }
+        if case .success(var value)? = await foreca { value.source = "Foreca"; series.append(SourceSeries(value)) }
+        if (UserDefaults.standard.string(forKey: "forecastMode") ?? "blend") == "blend" { series += await FreeSources.load(place) }
+        AdaptiveStore.shared.capture(series, at: place)
         await AdaptiveStore.shared.collectIfDue(place)
         Diagnostics.shared.add("accuracy", "Background collection ran")
     }

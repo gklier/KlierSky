@@ -32,7 +32,7 @@ struct DailyForecastSection: View {
                     if index < days.count - 1 { Divider().opacity(0.5) }
                 }
             }
-            SourceNote(text: "Tap a day for details · \(forecast.source ?? "Open-Meteo")")
+            SourceNote(text: "Tap a day for details · \(forecast.dailySourceLine)")
         }
     }
     static func name(_ day: DayForecast, index: Int, zone: TimeZone, full: Bool = false) -> String {
@@ -198,7 +198,7 @@ struct WeatherStatistics: View {
                     Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary)
                 }.padding(.vertical, 4).contentShape(Rectangle())
             }.buttonStyle(.plain)
-            SourceNote(text: "Model estimates · \(forecast.source ?? "Open-Meteo"). Hourly values fill in where the provider sends no current value. — means unavailable.")
+            SourceNote(text: "Model estimates · \(forecast.sourceLine). Hourly values fill in where the provider sends no current value. — means unavailable.")
         }
     }
     private var alertSymbol: String { alerts.coverage == .outside ? "minus.circle" : alerts.isStale() ? "questionmark.circle" : alerts.current().isEmpty ? "checkmark.shield" : "exclamationmark.triangle.fill" }
@@ -229,9 +229,9 @@ struct ProviderComparison: View {
             SectionHeader("Compare sources")
             if forecasts.count >= 2 {
                 Chart(points) { p in LineMark(x: .value("Time", p.time), y: .value("Temperature", p.temperature)).foregroundStyle(by: .value("Source", p.source)).interpolationMethod(.monotone) }
-                    .chartForegroundStyleScale(["Foreca": Sky.accent, "Open-Meteo": Sky.warm])
+                    .chartForegroundStyleScale(["Foreca": Sky.accent, "Open-Meteo": Sky.warm, Blend.name: Color.primary])
                     .chartYScale(domain: .automatic(includesZero: false)).frame(height: 150)
-                SourceNote(text: "Two independent forecasts for the next 24 hours. The gap between them is disagreement, not a confidence band.")
+                SourceNote(text: "One line per forecast for the next 24 hours" + (forecasts.contains { $0.blend != nil } ? "; the blend is their weighted average with the other sources" : "") + ". The gap between lines is disagreement, not a confidence band.")
             } else { Text("Only one forecast source is connected right now, so there is nothing to compare.").font(.footnote).foregroundStyle(.secondary) }
         }
     }

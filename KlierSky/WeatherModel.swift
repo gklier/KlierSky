@@ -24,6 +24,7 @@ import SwiftUI
     var modelFramesError: String?
     var modelFramesLoading = false
     private var requestID = UUID()
+    @ObservationIgnored private var freeCache: (placeID: String, fetched: Date, series: [SourceSeries])?
     let locationService = LocationService()
     init() {
         let saved = UserDefaults.standard.data(forKey: "selectedPlace").flatMap { try? JSONDecoder().decode(Place.self, from: $0) }
@@ -81,6 +82,10 @@ import SwiftUI
         // Access is automatic: a new install enrolls itself for read-only service access.
         await GatewayAccess.shared.ensure()
         let token = GatewayAccess.shared.bearer
+        // Every source KlierSky can reach is blended, unless the user asked for a single source.
+        let blending = (UserDefaults.standard.string(forKey: "forecastMode") ?? "blend") == "blend"
+        let warm = blending ? cachedFree(location) : nil
+        async let extraResult: [SourceSeries] = blending && warm == nil ? await freeSeries(location) : []
         async let weatherResult = capture { try await Forecast.load(location) }
         async let radarResult = capture { try await RainViewerProvider().frames() }
         async let forecaResult: Result<Forecast, Error>? = token != nil ? await capture { try await Gateway.forecast(location, token: token!) } : nil
@@ -101,15 +106,12 @@ import SwiftUI
         case nil: break
         }
         let preferred = UserDefaults.standard.string(forKey: "preferredProvider") ?? "Foreca"
-        let choice = ProviderChoice.pick(available: available.compactMap(\.source), preferred: preferred, forecaConnected: token != nil, saved: forecast?.source)
-        providerStatus = choice.status
-        if var chosen = available.first(where: { $0.source == choice.source }) {
-            if chosen.source == "Foreca", chosen.timezone == nil, let metadata = available.first(where: { $0.source == "Open-Meteo" }) { chosen.timezone = metadata.timezone; chosen.utc_offset_seconds = metadata.utc_offset_seconds }
-            forecast = chosen; updated = Date(); alternatives = available.filter { $0.source != chosen.source }
-            CachedForecast(place: location, forecast: chosen, fetchedAt: updated!).save()
-            available.forEach { AdaptiveStore.shared.capture($0, at: location) }
-            // Explain a missing Foreca forecast only to someone who asked for Foreca.
-            if let forecaProblem, choice.isFallback, preferred == "Foreca" { error = forecaProblem + " Showing \(chosen.source ?? "the fallback source")." }
+        let shown = present(available, extras: warm ?? [], blending: blending, preferred: preferred, connected: token != nil, location: location)
+        if shown {
+            // Explain a missing Foreca forecast only to someone who expects Foreca.
+            if let forecaProblem, forecast?.source != "Foreca", blending || preferred == "Foreca" {
+                error = forecaProblem + (forecast?.blend != nil ? " The blend continues without it." : " Showing \(forecast?.source ?? "the fallback source").")
+            }
         } else {
             error = forecast == nil ? "Could not load a forecast. Check the connection and try again." : "Refresh failed. Showing the saved forecast."
         }
@@ -121,6 +123,12 @@ import SwiftUI
         guard requestID == id else { return }
         alerts = alertFeed; AlertCache.save(alertFeed)
         if let airValue { air = airValue }
+        // The free sources were not on hand yet: join them now and show the fuller blend.
+        if blending, warm == nil {
+            let extras = await extraResult
+            guard requestID == id else { return }
+            if !extras.isEmpty, present(available, extras: extras, blending: true, preferred: preferred, connected: token != nil, location: location), available.isEmpty { error = nil }
+        }
         if let token, UserDefaults.standard.bool(forKey: "forecaMapsEnabled") {
             do {
                 let value = try await Gateway.frames(location, token: token)
@@ -134,7 +142,7 @@ import SwiftUI
                 guard requestID == id else { return }; licensedFrames = value
             } catch { licensedError = "Custom map connection failed." }
         }
-        if let token, forecast?.source == "Foreca", UserDefaults.standard.object(forKey: "forecaNowcastEnabled") as? Bool ?? true {
+        if let token, forecast?.source == "Foreca" || forecast?.blend?.members.contains(where: { $0.source == "Foreca" }) == true, UserDefaults.standard.object(forKey: "forecaNowcastEnabled") as? Bool ?? true {
             do {
                 let value = try await Gateway.nowcast(location, token: token)
                 guard requestID == id else { return }; nowcast = value
@@ -145,6 +153,42 @@ import SwiftUI
         loading = false
         Diagnostics.shared.add("refresh", "Weather refresh finished")
         if UserDefaults.standard.bool(forKey: "verifyStations") { await AdaptiveStore.shared.collectIfDue(location) }
+    }
+    /// Free sources fetched within the last half hour for this place. The models behind them update hourly at most.
+    private func cachedFree(_ place: Place) -> [SourceSeries]? {
+        guard let cache = freeCache, cache.placeID == place.id, Date().timeIntervalSince(cache.fetched) < 1800 else { return nil }
+        return cache.series
+    }
+    private func freeSeries(_ place: Place) async -> [SourceSeries] {
+        let found = await FreeSources.load(place)
+        if !found.isEmpty { freeCache = (place.id, Date(), found); Diagnostics.shared.add("provider", "Additional free sources received") }
+        else { Diagnostics.shared.add("provider", "No additional free source answered") }
+        return found
+    }
+    /// Puts a forecast on screen from what arrived: a weighted blend when blending is on and at least two
+    /// sources answered, otherwise the single source chosen by preference. Returns false when nothing arrived.
+    @discardableResult private func present(_ available: [Forecast], extras: [SourceSeries], blending: Bool, preferred: String, connected: Bool, location: Place) -> Bool {
+        let choice = ProviderChoice.pick(available: available.compactMap(\.source), preferred: preferred, forecaConnected: connected, saved: forecast?.source)
+        let series = available.map { SourceSeries($0) } + extras
+        if blending, series.count >= 2 {
+            let names = series.map(\.source)
+            let tables = (0...3).map { AdaptiveStore.shared.blendWeights(sources: names, place: location, bucket: $0) }
+            if let blended = Blend.combine(series, weights: { tables[$0].weights }, measured: tables[0].measured), let valid = try? blended.validated(), let info = valid.blend {
+                forecast = valid; updated = Date(); alternatives = available
+                providerStatus = "Blend · \(info.members.count) sources"
+                CachedForecast(place: location, forecast: valid, fetchedAt: updated!).save()
+                AdaptiveStore.shared.capture(series, at: location)
+                return true
+            }
+        }
+        providerStatus = choice.status
+        guard var chosen = available.first(where: { $0.source == choice.source }) else { return false }
+        if chosen.source == "Foreca", chosen.timezone == nil, let metadata = available.first(where: { $0.source == "Open-Meteo" }) { chosen.timezone = metadata.timezone; chosen.utc_offset_seconds = metadata.utc_offset_seconds }
+        forecast = chosen; updated = Date(); alternatives = available.filter { $0.source != chosen.source }
+        if blending { providerStatus += " · only source reached" }
+        CachedForecast(place: location, forecast: chosen, fetchedAt: updated!).save()
+        AdaptiveStore.shared.capture(series, at: location)
+        return true
     }
     /// Real HRRR model frames, loaded only when the Futurecast tab is opened.
     func loadModelFrames() async {

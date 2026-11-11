@@ -242,7 +242,8 @@ struct RadarScreen: View {
     @State private var engine = RadarEngine()
     @State private var playing = false
     @State private var status = ""
-    @State private var future = false
+    /// "timeline": past radar followed by the model forecast on one scrubber. "radar": past only. "model": forecast only.
+    @AppStorage("mapMode") private var mode = "timeline"
     @State private var buffering = false
     @State private var pacer = FramePacer()
 
@@ -251,7 +252,18 @@ struct RadarScreen: View {
         if !licensed.isEmpty { return licensed }
         return modelFuturecast ? ForecastTimeline.select(model.modelFrames) : []
     }
-    private var frames: [WeatherFrame] { future ? futureFrames : Array(model.frames.suffix(24)) }
+    private var observed: [WeatherFrame] { Array(model.frames.suffix(24)) }
+    private var showsFuture: Bool { mode != "radar" }
+    private var frames: [WeatherFrame] {
+        switch mode {
+        case "radar": return observed
+        case "model": return futureFrames
+        // Observed frames end at the present and model frames start there, so the order is already chronological.
+        default: return observed + futureFrames
+        }
+    }
+    /// Position of the newest observed frame when both kinds are on one timeline: where "now" sits.
+    private var nowIndex: Int? { mode == "timeline" && !observed.isEmpty && !futureFrames.isEmpty ? observed.count - 1 : nil }
     private var zone: TimeZone { model.zone }
 
     var body: some View {
@@ -270,10 +282,10 @@ struct RadarScreen: View {
             }.padding(.horizontal, 14).padding(.bottom, 6)
         }
         .tint(Sky.accent)
-        .onAppear { reload(); engine.start(); launchOptions() }
+        .onAppear { reload(); engine.start(); launchOptions(); if showsFuture { Task { await model.loadModelFrames() } } }
         .onDisappear { finishPlayback(); engine.stop() }
         .onChange(of: frames) { reload() }
-        .onChange(of: future) { playing = false; reload(); if future { Task { await model.loadModelFrames() } } }
+        .onChange(of: mode) { playing = false; reload(); if showsFuture { Task { await model.loadModelFrames() } } }
         .onChange(of: phase) { if phase != .active { playing = false } }
         .onChange(of: playing) { if playing { pacer.start() } else { finishPlayback() } }
         .task(id: playing) {
@@ -289,8 +301,10 @@ struct RadarScreen: View {
         }
     }
     private func reload() {
-        engine.mode = future ? "Futurecast" : "Radar"
-        engine.setFrames(frames, target: future ? 0 : max(0, frames.count - 1))
+        engine.mode = mode == "model" ? "Futurecast" : mode == "radar" ? "Radar" : "Radar + futurecast"
+        // Open on the present: the newest observation, or the first model frame when only the model is shown.
+        let start = mode == "model" ? 0 : min(max(0, observed.count - 1), max(0, frames.count - 1))
+        engine.setFrames(frames, target: start)
     }
     private func finishPlayback() {
         pacer.stop(); buffering = false
@@ -306,14 +320,14 @@ struct RadarScreen: View {
     private func launchOptions() {
 #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
-        if arguments.contains("--futurecast") { future = true }
+        if arguments.contains("--futurecast") { mode = "model" }
         if arguments.contains("--play") { Task { try? await Task.sleep(for: .seconds(arguments.contains("--futurecast") ? 6 : 3)); playing = true } }
 #endif
     }
 
     private var panel: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Picker("Map mode", selection: $future) { Text("Radar · past 2 h").tag(false); Text("Futurecast · model").tag(true) }.pickerStyle(.segmented)
+            Picker("Map mode", selection: $mode) { Text("Past + future").tag("timeline"); Text("Radar").tag("radar"); Text("Model").tag("model") }.pickerStyle(.segmented)
             if let frame = engine.displayedFrame, engine.frames == frames {
                 HStack(alignment: .center) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -332,7 +346,7 @@ struct RadarScreen: View {
                 VStack(spacing: 3) {
                     Slider(value: Binding(get: { Double(engine.target) }, set: { engine.select(Int($0.rounded())); playing = false }), in: 0...Double(max(1, frames.count - 1)), step: 1)
                         .disabled(frames.count < 2).accessibilityLabel("Frame time").accessibilityValue(units.clock(frame.validTime, zone: zone))
-                    ReadinessBar(states: engine.buffer.states, target: engine.target)
+                    ReadinessBar(states: engine.buffer.states, target: engine.target, now: nowIndex)
                     HStack {
                         Text(frames.first.map { units.clock($0.validTime, zone: zone) } ?? "")
                         Spacer()
@@ -341,16 +355,24 @@ struct RadarScreen: View {
                         Text(frames.last.map { units.clock($0.validTime, zone: zone) } ?? "")
                     }.font(.caption2).foregroundStyle(.secondary).monospacedDigit()
                 }
+                MapLegend(observed: frame.kind == .observed)
                 Text(provenance(frame)).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            } else if future {
+                if mode == "timeline", futureFrames.isEmpty {
+                    // Only the past is on the timeline: say why, so a missing forecast is never mistaken for a dry one.
+                    Text(model.modelFramesLoading ? "Finding the latest model run…" : !modelFuturecast ? "Model futurecast is turned off in Settings, so only past radar is shown." : (model.modelFramesError ?? "No model forecast frames are available right now, so only past radar is shown."))
+                        .font(.caption2).foregroundStyle(Sky.caution).fixedSize(horizontal: false, vertical: true)
+                }
+            } else if mode == "model" {
                 futureEmpty
             } else {
                 Text(model.radarError ?? (model.loading ? "Loading radar frames…" : "No radar frames are available right now. Pull down on the weather screen to refresh.")).font(.subheadline)
             }
             if !status.isEmpty { Text(status).font(.caption2).foregroundStyle(Sky.caution) }
             HStack(spacing: 8) {
-                if future && model.licensedFrames.isEmpty { Link("NOAA HRRR", destination: URL(string: "https://rapidrefresh.noaa.gov/hrrr/")!); Link("IEM", destination: URL(string: "https://mesonet.agron.iastate.edu/ogc/")!) }
-                else if !future { Link("RainViewer", destination: URL(string: "https://www.rainviewer.com/")!) }
+                if mode != "model" { Link("RainViewer", destination: URL(string: "https://www.rainviewer.com/")!) }
+                if showsFuture && model.licensedFrames.isEmpty { Link("NOAA HRRR", destination: URL(string: "https://rapidrefresh.noaa.gov/hrrr/")!); Link("IEM", destination: URL(string: "https://mesonet.agron.iastate.edu/ogc/")!) }
+            }.font(.caption2).lineLimit(1)
+            HStack(spacing: 8) {
                 Link("OpenFreeMap", destination: URL(string: "https://openfreemap.org/")!)
                 Link("© OSM", destination: URL(string: "https://www.openstreetmap.org/copyright")!)
                 Link("OpenMapTiles", destination: URL(string: "https://openmaptiles.org/")!)
@@ -401,10 +423,34 @@ struct RadarScreen: View {
     }
 }
 
+/// Qualitative colour key for the layer on screen. The two sources use different palettes, and neither
+/// is presented as a calibrated scale: the key only says which end is light and which is heavy.
+struct MapLegend: View {
+    let observed: Bool
+    private var colors: [Color] {
+        observed
+            ? [Color(red: 0.62, green: 0.84, blue: 0.98), Color(red: 0.33, green: 0.63, blue: 0.95), Color(red: 0.13, green: 0.40, blue: 0.85), Color(red: 0.05, green: 0.20, blue: 0.62)]
+            : [Color(red: 0.55, green: 0.62, blue: 0.72), Color(red: 0.20, green: 0.70, blue: 0.25), Color(red: 0.95, green: 0.85, blue: 0.20), Color(red: 0.90, green: 0.20, blue: 0.15)]
+    }
+    var body: some View {
+        HStack(spacing: 6) {
+            Text("Light").font(.caption2).foregroundStyle(.secondary)
+            HStack(spacing: 2) { ForEach(colors.indices, id: \.self) { index in RoundedRectangle(cornerRadius: 2).fill(colors[index]).frame(width: 22, height: 6) } }
+            Text("Heavy").font(.caption2).foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            Text(observed ? "Radar colours" : "Model colours").font(.caption2).foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(observed ? "Radar colours run from light blue for light precipitation to dark blue for heavy." : "Model colours run from gray-blue for faint, through green and yellow, to red for heavy precipitation.")
+    }
+}
+
 /// One tick per frame: filled when its tiles are in, hollow while loading, amber when tiles are missing.
+/// On a combined timeline a taller mark shows where observation ends and the model forecast begins.
 struct ReadinessBar: View {
     let states: [RadarBuffer.State]
     let target: Int
+    var now: Int? = nil
     var body: some View {
         Canvas { context, size in
             guard !states.isEmpty else { return }
@@ -413,10 +459,16 @@ struct ReadinessBar: View {
             for (index, state) in states.enumerated() {
                 let rect = CGRect(x: CGFloat(index) * (width + gap), y: 0, width: max(1, width), height: size.height)
                 let color: Color = state == .ready ? Sky.accent : state == .incomplete ? Sky.caution : Color.primary.opacity(state == .idle ? 0.10 : 0.25)
-                context.fill(Path(roundedRect: rect, cornerRadius: 1.5), with: .color(color.opacity(index == target ? 1 : 0.6)))
+                let inset = now == nil ? 0 : (size.height - 4) / 2
+                context.fill(Path(roundedRect: rect.insetBy(dx: 0, dy: inset), cornerRadius: 1.5), with: .color(color.opacity(index == target ? 1 : 0.6)))
+            }
+            if let now, states.indices.contains(now) {
+                // The boundary between what was observed and what the model expects.
+                let x = CGFloat(now + 1) * (width + gap) - gap / 2
+                context.fill(Path(CGRect(x: x - 0.75, y: 0, width: 1.5, height: size.height)), with: .color(.primary))
             }
         }
-        .frame(height: 4).accessibilityHidden(true)
+        .frame(height: now == nil ? 4 : 10).accessibilityHidden(true)
     }
 }
 

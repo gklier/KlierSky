@@ -130,7 +130,7 @@ struct ContentView: View {
                 HStack(spacing: 18) { facts(f, hour) }
                 VStack(spacing: 6) { facts(f, hour) }
             }.padding(.top, 10)
-            Text("\(f.source ?? "Open-Meteo") model estimate" + (model.updated.map { " · updated \(units.clock($0, zone: .current))" } ?? ""))
+            Text((f.blend != nil ? f.sourceLine : "\(f.source ?? "Open-Meteo") model estimate") + (model.updated.map { " · updated \(units.clock($0, zone: .current))" } ?? ""))
                 .font(.caption2).foregroundStyle(.secondary).padding(.top, 6)
         }
         .frame(maxWidth: .infinity)
@@ -213,13 +213,25 @@ struct ContentView: View {
             if model.forecast != nil, model.zone.secondsFromGMT() != TimeZone.current.secondsFromGMT() {
                 Text("Forecast times are local to \(model.place.name) (\(model.zone.abbreviation() ?? model.zone.identifier)).").font(.caption2).foregroundStyle(.secondary)
             }
-            HStack(spacing: 6) {
-                if model.forecast?.source == "Foreca" { Link("Forecast by Foreca", destination: URL(string: "https://www.foreca.com/")!) }
-                else { Link("Forecast by Open-Meteo", destination: URL(string: "https://open-meteo.com/")!) }
-                Text("·").foregroundStyle(.secondary)
+            if let blend = model.forecast?.blend {
+                // Every member of the blend is credited, with its share of the near-term weight.
+                Text("Weighted blend: \(blend.shares)").foregroundStyle(.secondary).multilineTextAlignment(.center)
+                HStack(spacing: 10) {
+                    if blend.members.contains(where: { $0.source == "Foreca" }) { Link("Foreca", destination: URL(string: "https://www.foreca.com/")!) }
+                    Link("Open-Meteo · CC BY 4.0", destination: URL(string: "https://open-meteo.com/")!)
+                    if blend.members.contains(where: { $0.source == METNorway.name }) { Link("MET Norway · CC BY 4.0", destination: URL(string: "https://api.met.no/doc/License")!) }
+                    if blend.members.contains(where: { $0.source == NWSHourly.name }) { Link("NWS", destination: URL(string: "https://www.weather.gov/")!) }
+                }
                 Link("Radar by RainViewer", destination: URL(string: "https://www.rainviewer.com/")!)
+            } else {
+                HStack(spacing: 6) {
+                    if model.forecast?.source == "Foreca" { Link("Forecast by Foreca", destination: URL(string: "https://www.foreca.com/")!) }
+                    else { Link("Forecast by Open-Meteo", destination: URL(string: "https://open-meteo.com/")!) }
+                    Text("·").foregroundStyle(.secondary)
+                    Link("Radar by RainViewer", destination: URL(string: "https://www.rainviewer.com/")!)
+                }
+                if model.alternatives.contains(where: { $0.source == "Open-Meteo" }) { Link("Comparison data: Open-Meteo · CC BY 4.0", destination: URL(string: "https://open-meteo.com/")!) }
             }
-            if model.alternatives.contains(where: { $0.source == "Open-Meteo" }) { Link("Comparison data: Open-Meteo · CC BY 4.0", destination: URL(string: "https://open-meteo.com/")!) }
             HStack(spacing: 10) {
                 Link("© OpenStreetMap", destination: URL(string: "https://www.openstreetmap.org/copyright")!)
                 Link("OpenMapTiles", destination: URL(string: "https://openmaptiles.org/")!)

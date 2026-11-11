@@ -57,7 +57,10 @@ struct CachedForecast: Codable {
     }
     func save() {
         if let data = try? JSONEncoder().encode(self) { try? data.write(to: AppFiles.url("last-forecast.json"), options: [.atomic, .completeFileProtectionUnlessOpen]) }
-        if WidgetStorage.sharedGroup != nil { WidgetStorage.save(place: place, forecast: forecast, fetchedAt: fetchedAt) }
+        if WidgetStorage.sharedGroup != nil {
+            WidgetStorage.save(place: place, forecast: forecast, fetchedAt: fetchedAt)
+            if place.name == "Current location" { WidgetStorage.saveLastLocation(place, at: fetchedAt) }
+        }
         WidgetCenter.shared.reloadAllTimelines()
     }
 }
