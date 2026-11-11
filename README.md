@@ -7,6 +7,7 @@
 SwiftUI · MapLibre Native · WidgetKit · Foreca · Open-Meteo · MET Norway · NWS
 
 [![iOS 17+](https://img.shields.io/badge/iOS-17%2B-087b96?style=flat-square)](#build-it)
+[![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm_Noncommercial-6e7bd8?style=flat-square)](LICENSE.md)
 [![Status: early beta](https://img.shields.io/badge/status-early_beta-f4bf60?style=flat-square)](#where-things-stand)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_a_Coffee-gklier-FFDD00?style=flat-square&logo=buymeacoffee&logoColor=000)](https://buymeacoffee.com/gklier)
 
@@ -87,7 +88,7 @@ This is experimental **temperature selection**, not a claim that KlierSky is mor
 
 ## Build it
 
-Requirements: a Mac with Xcode and an iOS 17+ device or compatible simulator. Development validation used Xcode 27.2. The official MapLibre dependency is pinned in the project.
+You can build and run your own copy for personal and noncommercial use ([license](LICENSE.md)): no paid account, weather key or server needed. A Mac with Xcode and an iPhone (or the simulator) is enough.
 
 ```sh
 git clone https://github.com/gklier/KlierSky.git
@@ -100,7 +101,9 @@ open KlierSky.xcodeproj
 3. Run. Open-Meteo and observed radar can work without a Foreca key. Provider terms and service availability still apply.
 4. For Foreca, deploy your own HTTPS gateway and give the build its address through the `KLIERSKY_GATEWAY_URL` build setting (see `Config/Local.example.xcconfig`), or enter it under **Settings → Owner administration**. No personal server endpoint or credential is bundled in this repository. [Gateway setup →](Gateway/README.md)
 
-SideStore can re-sign an IPA using the tester's own account. Free signing requires periodic refreshes and has app/App ID limits. Keep an existing installation when importing an update to avoid unnecessary data loss. [Official SideStore instructions](https://docs.sidestore.io/docs/installation/install)
+**[Full guide: build, install through SideStore, optional gateway →](Docs/BUILD-AND-INSTALL.md)**
+
+Open-Meteo forecasts and observed radar work without a Foreca key. Provider terms and service availability still apply. No personal server endpoint or credential is bundled in this repository.
 
 ### Checks
 
@@ -142,7 +145,7 @@ Portable Swift checks cover data decoding, the multi-source blend and its weight
 
 Foreca vendor credentials stay on the user's server; the iPhone stores a gateway access token in Keychain. Location is sent to the relevant weather/geocoding providers to obtain local results. Diagnostic messages are bounded, local and sanitized; nothing is uploaded automatically. Adaptive history stays on the device in the current implementation. This is not a claim of zero third-party network traffic.
 
-Credits: [Foreca](https://developer.foreca.com/), [Open-Meteo](https://open-meteo.com/), [MET Norway](https://api.met.no/), the [US National Weather Service](https://www.weather.gov/), [Iowa Environmental Mesonet](https://mesonet.agron.iastate.edu/), [RainViewer](https://www.rainviewer.com/), [MapLibre Native](https://maplibre.org/), [OpenFreeMap](https://openfreemap.org/), [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) and OpenMapTiles. Provider licenses, attribution, quotas and redistribution rights apply independently of this repository. See [project and third-party notices](NOTICE.md); no open-source license grant has been selected. [Provider notes →](Docs/PROVIDERS.md)
+Credits: [Foreca](https://developer.foreca.com/), [Open-Meteo](https://open-meteo.com/), [MET Norway](https://api.met.no/), the [US National Weather Service](https://www.weather.gov/), [Iowa Environmental Mesonet](https://mesonet.agron.iastate.edu/), [RainViewer](https://www.rainviewer.com/), [MapLibre Native](https://maplibre.org/), [OpenFreeMap](https://openfreemap.org/), [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) and OpenMapTiles. Provider licenses, attribution, quotas and redistribution rights apply independently of this repository. See [project and third-party notices](NOTICE.md). [Provider notes →](Docs/PROVIDERS.md)
 
 ## Support KlierSky
 
