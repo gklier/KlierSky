@@ -16,6 +16,27 @@ Personal prototype: Open-Meteo point forecast + RainViewer observed radar + MapL
 | Open-Meteo | Model-based point forecasts, hourly precipitation and probabilities; geographic/model dependent high resolution products also exist. Public API is for noncommercial use. | Working key-free personal forecast. Current endpoint is a model estimate, not a station observation. Commercial access needs an appropriate plan. CC BY attribution does not waive hosted API terms. |
 | Weather Underground | No verified redistribution entitlement in this project. | No scraping or reuse of private station credentials. Add only after explicit licensed station-data access. |
 
+## Blend members (added 2026-11-10)
+
+KlierSky's default forecast is a weighted average of every source below that answers. All were exercised live through the app's own code on 2026-11-10/11 (`sh Tests/live.sh`), except Foreca, which needs the owner's gateway.
+
+| Member | Reach | Key | What it adds | Terms to respect |
+|---|---|---|---|---|
+| Foreca | Global | Owner's gateway | Hourly and daily, ensemble range | Owner's contract |
+| Open-Meteo (best match) | Global | None | Hourly and daily, current conditions | CC BY 4.0 data; hosted API is for non-commercial use |
+| ECMWF, NOAA GFS, DWD ICON, UK Met Office, Météo-France, Canada GEM | Global or regional models | None | Six independent model runs in **one** Open-Meteo request | Same Open-Meteo terms |
+| MET Norway Locationforecast | Global | None | Hourly for about two days, current conditions | CC BY 4.0, credit required; asks for an identifying User-Agent and gentle request rates |
+| US National Weather Service hourly | United States | None | The forecasters' hourly grid; no precipitation amount | Public domain; asks for a User-Agent |
+
+Notes:
+
+- These are not eight independent opinions. Open-Meteo's best match is itself built from some of the same models, and all models share observations. The blend treats them as separate members anyway; weights from scored forecasts are what should sort this out over time.
+- Additional free sources are fetched at most every 30 minutes per place, in three requests (four in the US).
+- The current User-Agent is generic. MET Norway's terms ask for contact details in it; adding a project address is an owner decision because it identifies the project in every request.
+- **If KlierSky ever earns money, the free Open-Meteo API can no longer be used** (non-commercial terms), which removes seven of the members until a paid plan exists. MET Norway and NWS data stay usable with attribution.
+
+Not added, because each needs an account key that would have to live on the gateway, and their free-tier terms have not been verified: Pirate Weather, WeatherAPI.com, OpenWeather, Tomorrow.io, Visual Crossing. The blend takes any source that can be turned into hourly values, so adding one is an adapter plus a gateway route. The owner's position: pay for data only once the app earns money.
+
 ## Primary sources
 
 - Foreca map layers, capabilities and authentication: https://developer.foreca.com/docs/weather-maps
@@ -24,6 +45,7 @@ Personal prototype: Open-Meteo point forecast + RainViewer observed radar + MapL
 - RainViewer terms: https://www.rainviewer.com/api.html
 - Azure tiles and temporal limits: https://learn.microsoft.com/en-us/rest/api/maps/render/get-map-tile?view=rest-maps-2024-04-01
 - NWS API: https://www.weather.gov/documentation/services-web-api
+- MET Norway Locationforecast and terms: https://api.met.no/weatherapi/locationforecast/2.0/documentation and https://api.met.no/doc/TermsOfService
 - Open-Meteo forecast: https://open-meteo.com/en/docs
 - Open-Meteo hosted service terms: https://open-meteo.com/en/terms
 - MapLibre installation: https://maplibre.org/maplibre-native/ios/latest/documentation/maplibre-native-for-ios/gettingstarted/

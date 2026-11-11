@@ -64,3 +64,53 @@ Lookahead protection in scoring and in the held-out check; station selection and
 ## Suggested order on the Mac
 
 See "Mac validation pending" in [FEATURE-STATUS.md](FEATURE-STATUS.md).
+
+---
+
+# Second pass — November 11, 2026
+
+Follow-up to the owner's instructions after the first pass: more free sources blended by reliability, widget fixes and larger widgets, and more time on the futurecast map, design and adaptive weather. Same limits as above: nothing built, deployed or installed.
+
+## What was added
+
+| Area | Change | Validation |
+|---|---|---|
+| Sources | Adapters for MET Norway, US National Weather Service hourly, and six global models (ECMWF, GFS, ICON, UK Met Office, Météo-France, Canada GEM) through one Open-Meteo request | Checked against recorded real replies; all live |
+| Blend | Weighted average of every source that answers, per hour and per field; conditions from the top-ranked source; daily values from sources that publish them; members and shares carried with the forecast | Checked (arithmetic, missing values, wind direction, lead-time weights, labels, save and reload); live blend of eight free sources produced a valid forecast |
+| Weights | Fixed starting ranking (Foreca first); scaled by scored forecasts when two or more sources share 20 hours over 5 days; capped at four times either way | Checked |
+| App | Blend is the default; "One source" stays in Settings; labels, footer credits and the Adaptive weather screen show members and shares | `WeatherModel.swift` type-checked on Linux with stand-ins; views syntax-parsed only |
+| Evidence | Every member's forecast is saved for scoring, only while collection is on | Capture logic is in an app-only file: syntax-parsed only |
+| Widgets | Last-known-position fallback; files readable while locked; "Adaptive · N sources" or the source name; new hourly and daily widgets, medium and large | Syntax-parsed only |
+| Map | Past radar and model forecast on one timeline with a "now" mark, colour key and a notice when the model is unavailable | Syntax-parsed only |
+
+## Defects found on the way
+
+- **Forecasts were being saved for scoring even with collection switched off**, contrary to the on-screen text. Fixed.
+- **Widget cache files could not be read while the iPhone was locked**, which would stop Lock Screen widgets refreshing. Fixed.
+- **The widget "Allow location" message** most likely comes from iOS itself: under "While Using" permission a widget gets the position only shortly after the app was used. This is the best explanation for the reported behaviour, not a confirmed diagnosis; it has to be confirmed on the phone.
+
+## Honest limits of the blend
+
+- No accuracy improvement has been measured. The starting ranking is an assumption. Until evidence is collected on a real phone, "most reliable" means "ranked first by default".
+- The members are not independent: several share the same underlying models.
+- Averaging smooths precipitation: a blend of one wet and seven dry sources shows light rain with a low chance, where one source showed a shower and the others nothing. The comparison chart and one-source mode remain for that reason.
+- Sources publish different things. The NWS has no precipitation amount; only Foreca and Open-Meteo feed the daily blend; hourly values beyond two days come from fewer members.
+- Places in half-hour time zones get a smaller blend, because sources whose hours do not line up are left out there rather than shifted.
+- Widgets blend with the starting ranking only; they cannot see the app's scores or Foreca without a shared App Group, which depends on signing.
+- More sources means more requests: three or four extra per place every half hour in the app, and per widget refresh.
+
+## Risk carried to the Mac
+
+This pass wrote roughly 300 lines of SwiftUI and WidgetKit code without a compiler for those frameworks. Expect a round of compile fixes before anything can be judged, most likely in `KlierSkyWidgets.swift` and `RadarView.swift`.
+
+## Android
+
+Not started. The iOS app is SwiftUI and cannot run on Android, so "Android first" means a second app, not a port. What carries over is the gateway, the provider notes and the logic (blend, weights, access, timeline selection), which would be rewritten in Kotlin from the Swift checks.
+
+| Option | Cost | Result |
+|---|---|---|
+| Native Android app (Kotlin, Jetpack Compose, MapLibre Android, Glance widgets) | A second codebase to keep in step | Best Android experience. **Can be built and unit-tested in the cloud**, unlike the iOS app, and an APK needs no paid account to hand to a tester. |
+| Shared core (Kotlin Multiplatform) with native screens on each platform | Rewrite the iOS logic into the shared core; more moving parts | One implementation of the blend and data code; still two interfaces |
+| One cross-platform app (Flutter or React Native) | Rewrite everything; Liquid Glass and WidgetKit become hard or second-rate | One codebase, weaker fit with the native iOS look this project is built around |
+
+Recommendation: get 0.4 building on the Mac first, because every iOS change since 0.3.1 is still unbuilt. If Android is wanted soon after, a native Kotlin app is the option that fits a cloud workflow: it can be compiled, tested and packaged here, and the friend can install the APK directly. It should start as its own pull request.

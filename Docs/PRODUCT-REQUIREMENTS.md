@@ -1,6 +1,6 @@
 # KlierSky product requirements
 
-Living document. Last updated 2026-11-10 (cloud session). The owner's brief in [CLOUD-CONTINUATION.md](CLOUD-CONTINUATION.md) is the source; this file restates it as checkable requirements and records where each stands. "Checked" means a portable check or gateway test covers the logic; "Mac pending" means it needs an Xcode build, simulator or iPhone that the cloud session does not have. Detailed status: [FEATURE-STATUS.md](FEATURE-STATUS.md). Evidence: [CLOUD-REVIEW-2026-11-10.md](CLOUD-REVIEW-2026-11-10.md).
+Living document. Last updated 2026-11-11 (cloud session, second pass: sections 4 and 11 to 13 reflect the owner's follow-up instructions). The owner's brief in [CLOUD-CONTINUATION.md](CLOUD-CONTINUATION.md) is the source; this file restates it as checkable requirements and records where each stands. "Checked" means a portable check or gateway test covers the logic; "Mac pending" means it needs an Xcode build, simulator or iPhone that the cloud session does not have. Detailed status: [FEATURE-STATUS.md](FEATURE-STATUS.md). Evidence: [CLOUD-REVIEW-2026-11-10.md](CLOUD-REVIEW-2026-11-10.md).
 
 ## 1. Identity and design
 
@@ -36,13 +36,15 @@ Living document. Last updated 2026-11-10 (cloud session). The owner's brief in [
 | # | Requirement | Standing |
 |---|---|---|
 | 4.1 | Lock Screen widgets are core, alongside Home Screen widgets. | Implemented: inline, circular, rectangular, small, medium. Rendering of this build: Mac pending. |
-| 4.2 | Widgets fetch Open-Meteo independently **and say so**. | Small, medium and (since 2026-11-10) rectangular show "Open-Meteo". Inline and circular have no room for a source line: they state it in the widget gallery description, the configuration description and the VoiceOver label only. Open point for the owner. |
+| 4.2 | A widget says whether it is running adaptive (a blend) or one source. Nothing more is required. | Implemented on small, medium, large and rectangular ("Adaptive · N sources" or the source name). Inline and circular say it to VoiceOver only. Mac pending. |
+| 4.3 | Larger widgets show more: one hourly, one daily. | Implemented as two new widgets in medium and large sizes. Mac pending. |
+| 4.4 | Widgets keep refreshing without opening the app; no recurring "allow location" message. | Cause identified (iOS limits widget location under "While Using" permission). Widgets now remember the last position and stay readable while locked. Confirmation on the phone: Mac pending. |
 
 ## 5. Data honesty
 
 | # | Requirement | Standing |
 |---|---|---|
-| 5.1 | Foreca is actually used when configured and reachable. | Implemented through the gateway. Selection logic checked. Live Foreca path: not exercised in the cloud (no credentials, by design). |
+| 5.1 | Foreca is actually used when configured and reachable. | Implemented through the gateway: the top-ranked member of the blend, or the single source when chosen. Selection logic checked. Live Foreca path: not exercised in the cloud (no credentials, by design). |
 | 5.2 | Accurate per-section source and fallback labels. | Checked: the label always names the source shown; "fallback" only when the preferred source was expected and failed; "Foreca not connected" when this install has no access; a saved forecast keeps its own source name. |
 | 5.3 | Never fabricate forecasts, uncertainty or accuracy improvements. | Missing values stay missing ("—"); no confidence numbers are invented; adaptive weather claims no improvement (section 7). |
 | 5.4 | Observed radar is never called futurecast. | Checked: observed frames can never enter the forecast timeline; forecast frames are labelled "MODEL FORECAST · NOT RADAR". |
@@ -63,7 +65,8 @@ Living document. Last updated 2026-11-10 (cloud session). The owner's brief in [
 
 | # | Requirement | Standing |
 |---|---|---|
-| 7.1 | Temperature-only validation and scoring; no claim of improved accuracy. | Met: wording in app and README says so. No accuracy advantage has been measured. |
+| 7.1 | Temperature-only validation and scoring; no claim of improved accuracy. | Met: wording in app and README says so. No accuracy advantage has been measured, for the blend or for any source. |
+| 7.3 | Scores set the blend's weights. | Checked: shared hours across days, capped at four times up or down, starting ranking kept for unscored sources. |
 | 7.2 | No lookahead; fair, independent comparisons; minimum sample; held-out check. | Checked: forecasts saved at least 30 minutes ahead; like-for-like issue times; 20 paired hours over 5 or more days; held-out gain of at least 0.25°F on 10 or more switched hours over 3 or more days. These are safeguards, not a significance test. |
 
 ## 8. Futurecast
@@ -85,3 +88,22 @@ Living document. Last updated 2026-11-10 (cloud session). The owner's brief in [
 ## 10. Working constraints
 
 Branch and pull request only; no merge, deployment or installation claim. Claude Fable 5.2 on the free included allowance only; no paid usage, model substitution, weather plan purchase or Apple enrollment. No access to production secrets, tunnels or the server. The cloud environment cannot run Xcode or the iOS Simulator.
+
+## 11. Many sources, one forecast
+
+| # | Requirement | Standing |
+|---|---|---|
+| 11.1 | Connect as many free weather services as possible. | Eight free members added to Open-Meteo and Foreca (list and terms: [PROVIDERS.md](PROVIDERS.md)). Checked and live. |
+| 11.2 | Show the average across all of them, weighted by reliability: the most reliable source counts most. | Implemented as the default forecast. Arithmetic checked; in the app: Mac pending. |
+| 11.3 | Reliability ranking. | Starts from a fixed ranking (Foreca first), labelled as a starting assumption; replaced by weights from scored forecasts when evidence exists. No reliability has been measured yet. |
+| 11.4 | Section 5 still holds: no invented values, sources named. | A value no source supplied stays missing; every blended section names the blend, and the footer lists members, shares and credits. |
+
+## 12. Money
+
+Pay for weather data only once KlierSky earns money. Until then, free sources only. Earning money would itself end use of the free Open-Meteo API (non-commercial terms), so paid data and revenue arrive together; see [PROVIDERS.md](PROVIDERS.md).
+
+## 13. Direction
+
+- **Look:** modern, Liquid Glass, Dark Sky-minimal, enhanced. Recorded in [DESIGN-DIRECTION.md](DESIGN-DIRECTION.md); visual work needs the Mac.
+- **Emphasis:** futurecast map, design and adaptive weather.
+- **Android:** under consideration, possibly first, with a friend as tester. Not started; options and a recommendation are in [CLOUD-REVIEW-2026-11-10.md](CLOUD-REVIEW-2026-11-10.md).
