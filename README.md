@@ -4,13 +4,13 @@
 
 **A compact, native iPhone weather app with a little nostalgia and a clearer outlook.**
 
-SwiftUI · MapLibre Native · Foreca · Open-Meteo · WidgetKit
+SwiftUI · MapLibre Native · WidgetKit · Foreca · Open-Meteo · MET Norway · NWS
 
 [![iOS 17+](https://img.shields.io/badge/iOS-17%2B-087b96?style=flat-square)](#build-it)
 [![Status: early beta](https://img.shields.io/badge/status-early_beta-f4bf60?style=flat-square)](#where-things-stand)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_a_Coffee-gklier-FFDD00?style=flat-square&logo=buymeacoffee&logoColor=000)](https://buymeacoffee.com/gklier)
 
-[The app](#a-forecast-you-can-read-at-a-glance) · [Screenshots](#a-look-inside) · [Build](#build-it) · [Roadmap](#what-comes-next) · [Support](#support-kliersky)
+[The app](#a-forecast-you-can-read-at-a-glance) · [Many sources](#many-sources-one-forecast) · [Screenshots](#a-look-inside) · [Build](#build-it) · [Roadmap](#what-comes-next) · [Support](#support-kliersky)
 
 </div>
 
@@ -19,6 +19,19 @@ SwiftUI · MapLibre Native · Foreca · Open-Meteo · WidgetKit
 KlierSky brings the dense, useful feel of classic weather apps to a native SwiftUI interface. Current conditions come first, followed by the map, a meaningful 12-hour outlook, compact hourly rows, daily forecasts and deeper weather details.
 
 The design takes inspiration from what made Dark Sky easy to read, using original code and artwork, Apple system typography, and light, dark or system appearance. KlierSky is an independent project and is not affiliated with Apple or Dark Sky.
+
+## Many sources, one forecast
+
+![How the KlierSky blend weighs its sources](Docs/Images/blend.svg)
+
+Instead of trusting one service, KlierSky can average all of them: Foreca when connected, Open-Meteo, six global weather models, MET Norway and, in the US, the National Weather Service. The more reliable a source, the more it counts, and the app always shows which sources took part and with what weight.
+
+- **Weights start as a ranking, not a measurement.** Foreca is first. Once KlierSky has scored enough saved forecasts against nearby station readings, each weight is scaled by how close that source actually came.
+- **Nothing is invented.** A value no source supplied stays missing. Conditions come from the top-ranked source rather than an average of codes.
+- **No accuracy gain is claimed.** Averaging often softens big misses, but that has not been measured here. One-source mode remains a setting.
+- **Free first.** Every source above needs no paid key. [Terms and limits →](Docs/PROVIDERS.md)
+
+*Development branch: tested against recorded and live responses, not yet built into an app.*
 
 ## A look inside
 
@@ -31,7 +44,7 @@ The design takes inspiration from what made Dark Sky easy to read, using origina
 </tr>
 </table>
 
-*Actual simulator captures from the development app, November 9, 2026. They predate later interface changes on the development branch, so the current layout differs in places. These screenshots use Open-Meteo; sources and timestamps remain visible. Weather values are snapshots, not current conditions. No generated app mockups.*
+*Actual simulator captures from the development app, November 9, 2026. **They are out of date:** the blend, new widgets and combined map timeline came after them. New captures need Xcode and the iOS Simulator, which the cloud sessions do not have, so they are queued for the next Mac session rather than replaced with mockups. These screenshots use Open-Meteo; sources and timestamps remain visible. Weather values are snapshots, not current conditions. No generated app mockups.*
 
 ## Made for everyday weather
 
@@ -115,11 +128,13 @@ Portable Swift checks cover data decoding, the multi-source blend and its weight
 
 - [ ] Verify SideStore install, migration, widgets and refresh on a physical iPhone.
 - [ ] Activate and validate legitimate 12+ hour forecast maps with licensed access.
-- [ ] Build and verify 0.4 on a Mac and iPhone (alerts list, model futurecast, automatic device access).
+- [ ] Build and verify 0.4 on a Mac and iPhone (blend, alerts list, combined map timeline, automatic device access, new hourly and daily widgets).
+- [ ] Retake the screenshots above from the 0.4 build.
+- [ ] Decide on an Android version (a native app, tested by a friend, is the leading option).
 - [ ] Add reliable alert notification delivery.
 - [ ] Add genuine near-term rain timing where supported.
 - [ ] Collect and verify adaptive forecasts continuously on the server.
-- [ ] Share Foreca forecasts with widgets.
+- [ ] Share Foreca forecasts and measured blend weights with widgets.
 - [ ] Deploy read-only per-device family access and revocation (implemented, not deployed).
 - [ ] Profile radar, battery and memory; complete accessibility and offline testing.
 

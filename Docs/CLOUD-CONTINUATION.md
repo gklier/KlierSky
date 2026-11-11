@@ -26,4 +26,8 @@ Done in the cloud: full source review; portable checks made to run on Linux and 
 
 Note: GitHub reports this repository as **public**, not private as assumed above. The branch was pushed as a single commit without the gateway hostname, at the owner's direction; decide whether the repository should be made private.
 
+Standing owner instruction (2026-11-11): after every finished change, update the README, docs, screenshots and GitHub, and keep the page beautiful. It is recorded in `CLAUDE.md`. Screenshots cannot be retaken in the cloud; they are queued for the Mac.
+
+The owner switched the session model to Sonnet 5.5 on 2026-11-11 (the session record shows `user_switched_model`). `CLAUDE.md` still says Fable 5.2 only; the owner should confirm which it wants.
+
 Pending on a Mac: Xcode build of app and widgets (SwiftUI view files were syntax-parsed only, not type-checked), simulator and device checks, signing, IPA, SideStore update. Pending owner decisions: enrollment mode and gateway migration; whether inline and circular Lock Screen widgets need a visible source line.
