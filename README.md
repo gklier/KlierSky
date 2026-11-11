@@ -32,20 +32,20 @@ Instead of trusting one service, KlierSky can average all of them: Foreca when c
 - **No accuracy gain is claimed.** Averaging often softens big misses, but that has not been measured here. One-source mode remains a setting.
 - **Free first.** Every source above needs no paid key. [Terms and limits →](Docs/PROVIDERS.md)
 
-*Development branch: tested against recorded and live responses, not yet built into an app.*
+*Development branch: tested against recorded and live responses, built in Xcode, and launched in the iPhone simulator.*
 
 ## A look inside
 
 <table>
-<tr><th>Clear in daylight</th><th>Comfortable after dark</th><th>The details behind the day</th></tr>
+<tr><th>Clear in daylight</th><th>Comfortable after dark</th><th>From radar to futurecast</th></tr>
 <tr>
-<td width="33%"><img src="Docs/Images/forecast-light.png" alt="KlierSky light appearance with current conditions, radar, wind outlook and hourly temperatures" width="300"></td>
+<td width="33%"><img src="Docs/Images/forecast-light.png" alt="KlierSky light appearance with current conditions, radar, precipitation outlook and hourly temperatures" width="300"></td>
 <td width="33%"><img src="Docs/Images/forecast-dark.png" alt="KlierSky dark appearance with a compact forecast layout" width="300"></td>
-<td width="33%"><img src="Docs/Images/daily-detail.png" alt="Daily forecast detail showing precipitation, wind, UV and sunrise and sunset" width="300"></td>
+<td width="33%"><img src="Docs/Images/radar-timeline.png" alt="Combined map timeline showing observed radar, the boundary to model futurecast, and a precipitation legend" width="300"></td>
 </tr>
 </table>
 
-*Actual simulator captures from the development app, November 9, 2026. **They are out of date:** the blend, new widgets and combined map timeline came after them. New captures need Xcode and the iOS Simulator, which the cloud sessions do not have, so they are queued for the next Mac session rather than replaced with mockups. These screenshots use Open-Meteo; sources and timestamps remain visible. Weather values are snapshots, not current conditions. No generated app mockups.*
+*Actual iPhone simulator captures from KlierSky 0.4.0, November 10, 2026. Weather values are snapshots. Forecast sources and map timestamps are visible in the app.*
 
 ## Made for everyday weather
 
