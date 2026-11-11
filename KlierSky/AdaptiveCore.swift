@@ -173,6 +173,37 @@ enum AdaptiveEngine {
         return .use(candidate)
     }
 
+    /// Weights for the multi-source blend in one lead-time group.
+    ///
+    /// Every source starts from the stated ranking in `Blend.priors`. Sources with enough scored forecasts
+    /// (`minimum` of the same hours across `minimumDays` days, so nobody is ranked on easier weather) have that
+    /// starting weight scaled by how close they were: (typical miss ÷ own miss)², limited to a factor of 4
+    /// either way so a short lucky run cannot take over the blend. Only past scores are used.
+    struct BlendWeights: Equatable { let weights: [String: Double]; let measured: Set<String>; let hours: Int }
+    static func blendWeights(sources: [String], placeID: String, bucket: Int, samples: [VerifiedTemperature], minimum: Int = 20, minimumDays: Int = 5, now: Date = Date()) -> BlendWeights {
+        var weights = Blend.startingWeights(sources)
+        let recent = samples.filter { $0.placeID == placeID && $0.bucket == bucket && $0.targetTime <= now && now.timeIntervalSince($0.observedTime) < 30 * 86400 && sources.contains($0.provider) }
+        var byProvider: [String: [Date: Double]] = [:]
+        for sample in recent { byProvider[sample.provider, default: [:]][sample.targetTime] = abs(sample.errorF) }
+        // Sources with enough hours of their own, most-scored first; keep adding while the shared hours stay sufficient.
+        let candidates = byProvider.filter { $0.value.count >= minimum }.sorted { ($0.value.count, $1.key) > ($1.value.count, $0.key) }
+        var chosen: [String] = [], common: Set<Date> = []
+        for (provider, scores) in candidates {
+            let shared = chosen.isEmpty ? Set(scores.keys) : common.intersection(scores.keys)
+            guard shared.count >= minimum, Set(shared.map(day)).count >= minimumDays else { continue }
+            chosen.append(provider); common = shared
+        }
+        guard chosen.count >= 2 else { return BlendWeights(weights: weights, measured: [], hours: 0) }
+        let misses = Dictionary(uniqueKeysWithValues: chosen.map { provider in (provider, common.map { byProvider[provider]![$0]! }.reduce(0, +) / Double(common.count)) })
+        let sorted = misses.values.sorted()
+        let typical = sorted.count % 2 == 1 ? sorted[sorted.count / 2] : (sorted[sorted.count / 2 - 1] + sorted[sorted.count / 2]) / 2
+        for provider in chosen {
+            let ratio = max(typical, 0.25) / max(misses[provider]!, 0.25)       // misses under a quarter degree are treated alike
+            weights[provider] = (weights[provider] ?? 1) * min(4, max(0.25, ratio * ratio))
+        }
+        return BlendWeights(weights: weights, measured: Set(chosen), hours: common.count)
+    }
+
     struct Coverage: Equatable { let provider: String; let bucket: Int; let count: Int; let mae: Double; let bias: Double; let first: Date; let last: Date }
     static func coverage(_ samples: [VerifiedTemperature], placeID: String, now: Date = Date()) -> [Coverage] {
         var groups: [String: [VerifiedTemperature]] = [:]

@@ -12,4 +12,6 @@ swiftc -parse-as-library -module-cache-path "$check_dir/cache" "$project_dir/Kli
 "$check_dir/access-checks"
 swiftc -parse-as-library -module-cache-path "$check_dir/cache" "$project_dir/KlierSky/Weather.swift" "$project_dir/KlierSky/RadarCore.swift" "$project_dir/KlierSky/AlertsCore.swift" "$project_dir/Tests/FeatureChecks.swift" -o "$check_dir/feature-checks"
 "$check_dir/feature-checks" "$project_dir/Tests/Fixtures/nws-alerts.json"
+swiftc -parse-as-library -module-cache-path "$check_dir/cache" "$project_dir/KlierSky/Weather.swift" "$project_dir/KlierSky/AdaptiveCore.swift" "$project_dir/Tests/BlendChecks.swift" -o "$check_dir/blend-checks"
+"$check_dir/blend-checks" "$project_dir/Tests/Fixtures"
 python3 -m unittest discover -s "$project_dir/Gateway" -p "test_*.py"
