@@ -4,13 +4,14 @@
 
 **A compact, native iPhone weather app with a little nostalgia and a clearer outlook.**
 
-SwiftUI · MapLibre Native · Foreca · Open-Meteo · WidgetKit
+SwiftUI · MapLibre Native · WidgetKit · Foreca · Open-Meteo
 
 [![iOS 17+](https://img.shields.io/badge/iOS-17%2B-087b96?style=flat-square)](#build-it)
+[![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm_Noncommercial-6e7bd8?style=flat-square)](LICENSE.md)
 [![Status: early beta](https://img.shields.io/badge/status-early_beta-f4bf60?style=flat-square)](#where-things-stand)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_a_Coffee-gklier-FFDD00?style=flat-square&logo=buymeacoffee&logoColor=000)](https://buymeacoffee.com/gklier)
 
-[The app](#a-forecast-you-can-read-at-a-glance) · [Screenshots](#a-look-inside) · [Build](#build-it) · [Roadmap](#what-comes-next) · [Support](#support-kliersky)
+[The app](#a-forecast-you-can-read-at-a-glance) · [Screenshots](#a-look-inside) · [Coming next](#in-development-many-sources-one-forecast) · [Build your own](#build-it) · [Roadmap](#what-comes-next) · [Support](#support-kliersky)
 
 </div>
 
@@ -31,7 +32,15 @@ The design takes inspiration from what made Dark Sky easy to read, using origina
 </tr>
 </table>
 
-*Actual simulator captures from the development app, November 9, 2026. These screenshots use Open-Meteo; sources and timestamps remain visible. Weather values are snapshots, not current conditions. No generated app mockups.*
+*Actual simulator captures from the development app, November 9, 2026. New captures are queued for the next Mac session; they cannot be taken from a cloud session, and mockups are never substituted. These screenshots use Open-Meteo; sources and timestamps remain visible. Weather values are snapshots, not current conditions. No generated app mockups.*
+
+## In development: many sources, one forecast
+
+![How the KlierSky blend weighs its sources](Docs/Images/blend.svg)
+
+The next version averages many weather services instead of trusting one: Foreca when connected, Open-Meteo, six global weather models, MET Norway and, in the US, the National Weather Service. More reliable sources count for more, and the app shows which took part and with what weight. Alongside it come a past-to-future map timeline, hourly and daily widgets, and widgets that keep updating without reopening the app.
+
+This is **not in the code on this page yet**. It lives on the [`development/cloud-continuation`](https://github.com/gklier/KlierSky/tree/development/cloud-continuation) branch ([pull request](https://github.com/gklier/KlierSky/pull/1)) and has been tested against recorded and live responses, but not yet built into an app. It will move here once it builds and runs on a Mac. The weights start as a fixed ranking, not a measurement, and no accuracy gain is claimed.
 
 ## Made for everyday weather
 
@@ -71,7 +80,7 @@ This is experimental **temperature selection**, not a claim that KlierSky is mor
 
 ## Build it
 
-Requirements: a Mac with Xcode and an iOS 17+ device or compatible simulator. Development validation used Xcode 27.2. The official MapLibre dependency is pinned in the project.
+You can build and run your own copy for personal and noncommercial use ([license](LICENSE.md)): no paid account, weather key or server needed. A Mac with Xcode and an iPhone (or the simulator) is enough.
 
 ```sh
 git clone https://github.com/gklier/KlierSky.git
@@ -79,12 +88,9 @@ cd KlierSky
 open KlierSky.xcodeproj
 ```
 
-1. Let Xcode resolve the MapLibre package.
-2. Select the **KlierSky** scheme and a simulator. For a real device, select your own signing team for both the app and widget targets; adjust bundle identifiers if needed.
-3. Run. Open-Meteo and observed radar can work without a Foreca key. Provider terms and service availability still apply.
-4. For Foreca, deploy your own HTTPS gateway and configure it under **Settings → Weather Lab**. No personal server endpoint or credential is bundled in this repository. [Gateway setup →](Gateway/README.md)
+Choose your own signing team and bundle identifiers on both targets, then press Run. **[Full guide: build, install through SideStore, optional Foreca gateway →](Docs/BUILD-AND-INSTALL.md)**
 
-SideStore can re-sign an IPA using the tester's own account. Free signing requires periodic refreshes and has app/App ID limits. Keep an existing installation when importing an update to avoid unnecessary data loss. [Official SideStore instructions](https://docs.sidestore.io/docs/installation/install)
+Open-Meteo forecasts and observed radar work without a Foreca key. Provider terms and service availability still apply. No personal server endpoint or credential is bundled in this repository.
 
 ### Checks
 
@@ -121,7 +127,7 @@ Portable Swift checks cover data decoding, provenance, stale data, timeline sele
 
 Foreca vendor credentials stay on the user's server; the iPhone stores a gateway access token in Keychain. Location is sent to the relevant weather/geocoding providers to obtain local results. Diagnostic messages are bounded, local and sanitized; nothing is uploaded automatically. Adaptive history stays on the device in the current implementation. This is not a claim of zero third-party network traffic.
 
-Credits: [Foreca](https://developer.foreca.com/), [Open-Meteo](https://open-meteo.com/), [RainViewer](https://www.rainviewer.com/), [MapLibre Native](https://maplibre.org/), [OpenFreeMap](https://openfreemap.org/), [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) and OpenMapTiles. Provider licenses, attribution, quotas and redistribution rights apply independently of this repository. See [project and third-party notices](NOTICE.md); no open-source license grant has been selected. [Provider notes →](Docs/PROVIDERS.md)
+Credits: [Foreca](https://developer.foreca.com/), [Open-Meteo](https://open-meteo.com/), [RainViewer](https://www.rainviewer.com/), [MapLibre Native](https://maplibre.org/), [OpenFreeMap](https://openfreemap.org/), [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) and OpenMapTiles. Provider licenses, attribution, quotas and redistribution rights apply independently of this repository. See [project and third-party notices](NOTICE.md). [Provider notes →](Docs/PROVIDERS.md)
 
 ## Support KlierSky
 
