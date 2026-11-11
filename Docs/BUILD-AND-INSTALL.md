@@ -1,6 +1,6 @@
 # Build and install your own KlierSky
 
-This guide matches the code on `main` (version 0.3.1). It needs a Mac. KlierSky is a native iPhone app, so there is no Android or Windows version yet.
+This guide matches the code on `main` (version 0.3.1). On the development branch (0.4.0, unbuilt) two things differ and are noted below; update this line when that branch is merged. It needs a Mac. KlierSky is a native iPhone app, so there is no Android or Windows version yet.
 
 You do not need a paid Apple Developer account, a weather key or a server. Without them the app shows Open-Meteo forecasts and RainViewer radar, and says so on screen.
 
@@ -49,6 +49,8 @@ Free signing lasts seven days and allows only a few apps and App IDs at a time. 
 
 Foreca is a commercial service and its key is never put in the app. To use it you run the small gateway in `Gateway/` on your own HTTPS server, which holds the key. Then give the app the gateway's address under **Settings → Weather Lab**. Setup: [Gateway/README.md](../Gateway/README.md). The repository contains no server address, key or token.
 
+*Development branch only:* the address comes from the `KLIERSKY_GATEWAY_URL` build setting (copy `Config/Local.example.xcconfig` to `Config/Local.xcconfig` and pass it with `-xcconfig`), so family devices need no typing. Without it the app uses the free sources.
+
 ## Optional: widgets
 
 Widgets work out of the box and fetch Open-Meteo themselves. Sharing data between the app and widgets needs an App Group under your own team: set `KlierSkyAppGroup` in both `Info.plist` files to your group identifier, after creating it in Signing & Capabilities for both targets.
@@ -59,7 +61,7 @@ Widgets work out of the box and fetch Open-Meteo themselves. Sharing data betwee
 sh Tests/run.sh
 ```
 
-Needs macOS with Xcode's command-line tools (or any Swift toolchain with Foundation networking) and Python 3. It decodes recorded sample responses, checks the adaptive-verification safeguards and runs the gateway's tests. It does not need the network or any key.
+Needs macOS with Xcode's command-line tools (on the development branch, any Swift 6 toolchain including Linux) and Python 3. It decodes recorded sample responses, checks the adaptive-verification safeguards and runs the gateway's tests. It does not need the network or any key.
 
 ## What you may and may not do
 

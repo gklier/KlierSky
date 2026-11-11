@@ -3,6 +3,8 @@
 Run behind an HTTPS reverse proxy, or set TLS_CERT and TLS_KEY. Loopback by default.
 """
 import base64
+import contextlib
+import fcntl
 import hashlib
 import hmac
 import json
@@ -11,6 +13,7 @@ import os
 import re
 import secrets
 import ssl
+import sys
 import threading
 import time
 from collections import OrderedDict, defaultdict, deque
@@ -42,6 +45,28 @@ CACHE = OrderedDict()
 MANIFESTS = {}
 RATE = defaultdict(deque)
 
+def env_int(name, default, low, high):
+    try: value = int(os.environ.get(name, default))
+    except ValueError: raise SystemExit(name + ' must be an integer.')
+    if not low <= value <= high: raise SystemExit(f'{name} must be between {low} and {high}.')
+    return value
+
+# Per-device read-only access. Disabled unless DEVICE_STATE_FILE is set, so an
+# existing owner-token deployment behaves exactly as before until migrated.
+DEVICE_FILE = os.environ.get('DEVICE_STATE_FILE', '')
+ENROLLMENT_MODES = ('closed', 'approval', 'open')
+ENROLLMENT_DEFAULT = os.environ.get('ENROLLMENT_MODE', 'closed')
+if ENROLLMENT_DEFAULT not in ENROLLMENT_MODES: raise SystemExit('ENROLLMENT_MODE must be closed, approval or open.')
+MAX_DEVICES = env_int('MAX_DEVICES', 6, 1, 64)
+ENROLL_PER_HOUR = env_int('ENROLL_PER_HOUR', 4, 1, 100)
+ENROLL_PER_DAY = env_int('ENROLL_PER_DAY', 12, 1, 500)
+DEVICE_DAILY_REQUESTS = env_int('DEVICE_DAILY_REQUESTS', 400, 1, 100000)
+DEVICE_PER_MINUTE = env_int('DEVICE_PER_MINUTE', 30, 1, 600)
+DEVICE_IDLE_DAYS = env_int('DEVICE_IDLE_DAYS', 60, 1, 3650)
+PENDING_DAYS = env_int('PENDING_DAYS', 7, 1, 365)  # an unapproved request is dropped after this; the app simply asks again
+UPSTREAM_DAILY_BUDGET = env_int('UPSTREAM_DAILY_BUDGET', 0, 0, 10000000)  # 0 keeps the legacy unlimited behavior
+BUDGET = {'day': '', 'count': 0}
+
 class GatewayError(Exception):
     def __init__(self, status, code): self.status, self.code = status, code
 
@@ -69,6 +94,12 @@ def request_foreca(path, query=None, binary=False, ttl=0):
     with LOCK:
         cached = CACHE.get(uri)
         if cached and cached[0] > time.time(): return cached[1]
+    if UPSTREAM_DAILY_BUDGET:
+        # Counts real vendor calls only; cache hits above are free.
+        with LOCK:
+            if BUDGET['day'] != today(): BUDGET['day'], BUDGET['count'] = today(), 0
+            if BUDGET['count'] >= UPSTREAM_DAILY_BUDGET: raise GatewayError(429, 'upstream_budget_exhausted')
+            BUDGET['count'] += 1
     req = Request(uri, headers={'Authorization': 'Bearer ' + FORECA_KEY, 'User-Agent': 'KlierSky-personal-gateway/0.2'})
     try:
         with UPSTREAM_CLIENT.open(req, timeout=20) as response:
@@ -123,6 +154,7 @@ def normalize_forecast(current, hourly, daily=None):
         result['hourly'][output] = [r.get(original) for r in rows]
     result['hourly']['wind_speed_10m'] = [r.get('windSpeed') for r in rows]
     result['hourly']['uv_index'] = [r.get('uvIndex') for r in rows]
+    result['hourly']['apparent_temperature'] = [r.get('feelsLikeTemp') for r in rows]
     if c.get('time'): result['utc_offset_seconds'] = int(iso_offset(c['time']))
     result['dailyRows'] = []
     if daily:
@@ -224,6 +256,220 @@ def redeem_pair_code(code):
         if not valid: raise GatewayError(403,'invalid_pair_code')
         return ACCESS_TOKEN
 
+def today():
+    return time.strftime('%Y-%m-%d', time.gmtime())
+
+def digest(value):
+    return hashlib.sha256(value.encode()).hexdigest()
+
+class Registry:
+    """Revocable per-device read-only credentials.
+
+    Only SHA-256 hashes of the random device tokens and install identifiers are
+    stored. The file is owner-only, rewritten atomically, and shared with the
+    `server.py devices ...` command through an advisory lock, so the owner can
+    approve or revoke on the server without any phone holding an admin secret.
+    """
+    CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+    def __init__(self, path):
+        self.path = path
+        self.guard = threading.RLock()
+        self.mtime = None
+        self.state = None
+        self.tokens = {}
+        self.usage = {}
+        self.enrollments = deque()
+        self.flushed = 0.0
+        self.load_usage()
+
+    @contextlib.contextmanager
+    def locked(self):
+        with self.guard:
+            fd = os.open(self.path + '.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX)
+                yield
+            finally:
+                fcntl.flock(fd, fcntl.LOCK_UN); os.close(fd)
+
+    def read(self):
+        """Return current state, reloading when another process changed the file."""
+        try: info = os.stat(self.path)
+        except FileNotFoundError:
+            if self.state is None or self.mtime is not None:
+                self.state = {'version': 1, 'enrollment': ENROLLMENT_DEFAULT, 'devices': {}}; self.tokens = {}; self.mtime = None
+            return self.state
+        if info.st_mode & 0o077: raise GatewayError(503, 'device_state_not_owner_only')
+        if self.state is None or info.st_mtime_ns != self.mtime:
+            with open(self.path, encoding='utf-8') as handle: state = json.load(handle)
+            if not isinstance(state, dict) or not isinstance(state.get('devices'), dict) or state.get('enrollment') not in ENROLLMENT_MODES:
+                raise GatewayError(503, 'device_state_invalid')
+            self.state = state; self.mtime = info.st_mtime_ns
+            self.tokens = {record['tokenHash']: device for device, record in state['devices'].items()}
+        return self.state
+
+    def write(self):
+        temp = self.path + '.new'
+        fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, 'w', encoding='utf-8') as handle: json.dump(self.state, handle, indent=1, sort_keys=True)
+        os.chmod(temp, 0o600); os.replace(temp, self.path)
+        self.mtime = os.stat(self.path).st_mtime_ns
+        self.tokens = {record['tokenHash']: device for device, record in self.state['devices'].items()}
+
+    # Usage counters are written only by the server process, at most once a minute.
+    def load_usage(self):
+        try:
+            with open(self.path + '.usage', encoding='utf-8') as handle: saved = json.load(handle)
+            for device, row in saved.get('devices', {}).items():
+                self.usage[device] = {'day': str(row.get('day', '')), 'count': int(row.get('count', 0)), 'seen': float(row.get('seen', 0)), 'recent': deque()}
+            if saved.get('budget', {}).get('day') == today(): BUDGET['day'], BUDGET['count'] = today(), int(saved['budget'].get('count', 0))
+        except (OSError, ValueError, TypeError, AttributeError): pass
+
+    def flush_usage(self, force=False):
+        if not force and time.time() - self.flushed < 60: return
+        self.flushed = time.time()
+        data = {'devices': {device: {'day': row['day'], 'count': row['count'], 'seen': row['seen']} for device, row in self.usage.items()}, 'budget': dict(BUDGET)}
+        try:
+            temp = self.path + '.usage.new'
+            fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+            with os.fdopen(fd, 'w', encoding='utf-8') as handle: json.dump(data, handle)
+            os.replace(temp, self.path + '.usage')
+        except OSError: pass  # Counters are advisory; identity state is never written here.
+
+    def seen(self, device):
+        row = self.usage.get(device)
+        return row['seen'] if row else 0
+
+    def expire(self, now):
+        """Free slots held by devices that stopped connecting; keep a bounded revocation list."""
+        devices = self.state['devices']; changed = False
+        for device, record in list(devices.items()):
+            last = max(self.seen(device), record.get('created', 0))
+            if record['status'] == 'pending': last = record.get('created', 0)  # status polls do not keep a request alive
+            limit = 180 if record['status'] == 'revoked' else PENDING_DAYS if record['status'] == 'pending' else DEVICE_IDLE_DAYS
+            if now - last > limit * 86400: del devices[device]; self.usage.pop(device, None); changed = True
+        revoked = sorted((d for d, r in devices.items() if r['status'] == 'revoked'), key=lambda d: devices[d].get('created', 0))
+        for device in revoked[:-200]: del devices[device]; changed = True
+        return changed
+
+    def lookup(self, token):
+        with self.guard:
+            state = self.read()
+            device = self.tokens.get(digest(token))
+            if device is None: return None
+            return dict(state['devices'][device], id=device)
+
+    def charge(self, device):
+        """Per-device request controls for weather endpoints."""
+        now = time.time()
+        with self.guard:
+            row = self.usage.setdefault(device, {'day': today(), 'count': 0, 'seen': 0, 'recent': deque()})
+            if row['day'] != today(): row['day'], row['count'] = today(), 0
+            recent = row['recent']
+            while recent and recent[0] < now - 60: recent.popleft()
+            if len(recent) >= DEVICE_PER_MINUTE: raise GatewayError(429, 'device_rate_limited')
+            if row['count'] >= DEVICE_DAILY_REQUESTS: raise GatewayError(429, 'device_quota_exceeded')
+            recent.append(now); row['count'] += 1; row['seen'] = now
+            self.flush_usage()
+
+    def enroll(self, body):
+        install, label = body.get('installID'), body.get('label', '')
+        if not isinstance(install, str) or not re.fullmatch(r'[A-Za-z0-9_-]{22,64}', install): raise GatewayError(400, 'invalid_install_id')
+        if not isinstance(label, str): raise GatewayError(400, 'invalid_label')
+        label = re.sub(r'[^A-Za-z0-9 ._-]', '', label)[:40]
+        marker = digest('install|' + install)
+        now = time.time()
+        with self.locked():
+            state = self.read(); devices = state['devices']
+            existing = next((d for d, r in devices.items() if hmac.compare_digest(r['installHash'], marker)), None)
+            if existing and devices[existing]['status'] == 'revoked': raise GatewayError(403, 'device_revoked')
+            if not existing and state['enrollment'] == 'closed': raise GatewayError(403, 'enrollment_closed')
+            while self.enrollments and self.enrollments[0] < now - 86400: self.enrollments.popleft()
+            if len(self.enrollments) >= ENROLL_PER_DAY or sum(1 for t in self.enrollments if t > now - 3600) >= ENROLL_PER_HOUR:
+                raise GatewayError(429, 'enrollment_rate_limited')
+            self.enrollments.append(now)
+            self.expire(now)
+            # Approved devices and waiting requests are capped separately, so unapproved
+            # requests (possibly from strangers) can never use up the family's device slots.
+            wanted = 'active' if state['enrollment'] == 'open' else 'pending'
+            if not existing and sum(1 for r in devices.values() if r['status'] == wanted) >= MAX_DEVICES: raise GatewayError(403, 'device_limit_reached')
+            token = 'ksd_' + secrets.token_urlsafe(32)
+            if existing:
+                # Same install asking again (lost reply, retry): rotate its token, keep its status.
+                device = existing; record = devices[device]; record['tokenHash'] = digest(token); record['label'] = label or record.get('label', '')
+            else:
+                device = secrets.token_hex(8)
+                record = {'tokenHash': digest(token), 'installHash': marker, 'role': 'reader', 'status': wanted,
+                          'created': int(now), 'label': label, 'code': ''.join(secrets.choice(self.CODE_ALPHABET) for _ in range(4))}
+                devices[device] = record
+            self.write()
+        return {'deviceID': device, 'accessToken': token, 'status': record['status'], 'role': 'reader', 'code': record['code']}
+
+    def set_status(self, device, status):
+        with self.locked():
+            state = self.read(); record = state['devices'].get(device)
+            if record is None: raise GatewayError(404, 'unknown_device')
+            if status == 'removed': del state['devices'][device]; self.usage.pop(device, None)
+            else:
+                if status == 'active' and record['status'] != 'active' and sum(1 for r in state['devices'].values() if r['status'] == 'active') >= MAX_DEVICES:
+                    raise GatewayError(409, 'device_limit_reached')
+                record['status'] = status
+            self.write()
+
+    def set_mode(self, mode):
+        if mode not in ENROLLMENT_MODES: raise GatewayError(400, 'invalid_enrollment_mode')
+        with self.locked():
+            self.read()['enrollment'] = mode; self.write()
+
+    def listing(self):
+        with self.guard:
+            state = self.read()
+            rows = [{'deviceID': device, 'label': r.get('label', ''), 'code': r.get('code', ''), 'status': r['status'], 'role': r.get('role', 'reader'), 'created': r.get('created', 0),
+                     'lastSeen': int(self.seen(device)), 'requestsToday': self.usage.get(device, {}).get('count', 0) if self.usage.get(device, {}).get('day') == today() else 0}
+                    for device, r in state['devices'].items()]
+            return {'enrollment': state['enrollment'], 'maxDevices': MAX_DEVICES, 'dailyRequestsPerDevice': DEVICE_DAILY_REQUESTS,
+                    'upstreamBudget': UPSTREAM_DAILY_BUDGET, 'upstreamUsedToday': BUDGET['count'] if BUDGET['day'] == today() else 0,
+                    'devices': sorted(rows, key=lambda row: row['created'])}
+
+    def self_status(self, device):
+        with self.guard:
+            record = self.read()['devices'][device]
+            row = self.usage.get(device, {})
+            return {'deviceID': device, 'role': 'reader', 'status': record['status'], 'code': record.get('code', ''),
+                    'dailyLimit': DEVICE_DAILY_REQUESTS, 'usedToday': row.get('count', 0) if row.get('day') == today() else 0}
+
+REGISTRY = Registry(DEVICE_FILE) if DEVICE_FILE else None
+
+def authenticate(header):
+    """Owner token → full access. Device token → read-only weather. Nothing else passes."""
+    if not isinstance(header, str) or not header.startswith('Bearer ') or len(header) > 512: raise GatewayError(401, 'gateway_auth_required')
+    token = header[7:]
+    if ACCESS_TOKEN and hmac.compare_digest(token.encode('utf-8', 'replace'), ACCESS_TOKEN.encode()): return {'role': 'owner', 'id': 'owner', 'status': 'active'}
+    if REGISTRY is not None:
+        device = REGISTRY.lookup(token)
+        if device is not None:
+            if device['status'] == 'revoked': raise GatewayError(401, 'device_revoked')
+            return {'role': 'reader', 'id': device['id'], 'status': device['status']}
+    raise GatewayError(401, 'gateway_auth_required')
+
+def require_owner(principal):
+    if principal['role'] != 'owner': raise GatewayError(403, 'owner_required')
+
+def admin_action(path, method, body):
+    """Owner-only device administration. Returns the reply body."""
+    if REGISTRY is None: raise GatewayError(404, 'device_access_not_configured')
+    if path == '/v1/admin/enrollment' and method == 'PUT':
+        REGISTRY.set_mode(body.get('mode')); return REGISTRY.listing()
+    match = re.fullmatch(r'/v1/admin/devices/([0-9a-f]{16})(/approve|/revoke)?', path)
+    if not match: raise GatewayError(404, 'not_found')
+    device, action = match.groups()
+    if method == 'POST' and action == '/approve': REGISTRY.set_status(device, 'active')
+    elif method == 'POST' and action == '/revoke': REGISTRY.set_status(device, 'revoked')
+    elif method == 'DELETE' and action is None: REGISTRY.set_status(device, 'removed')
+    else: raise GatewayError(404, 'not_found')
+    return REGISTRY.listing()
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_): pass  # Never log paths, signatures, coordinates or headers.
     def reply(self, status, data, content='application/json'):
@@ -231,24 +477,60 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status); self.send_header('Content-Type', content); self.send_header('Content-Length', str(len(body))); self.send_header('Cache-Control', 'no-store'); self.end_headers(); self.wfile.write(body)
     def setup(self):
         super().setup(); self.connection.settimeout(20)
+    def throttle(self):
+        # Global bound prevents unbounded per-IP dictionary allocation.
+        with LOCK:
+            recent = RATE['global']; now = time.time()
+            while recent and recent[0] < now - 60: recent.popleft()
+            if len(recent) >= 240: raise GatewayError(429, 'rate_limited')
+            recent.append(now)
+    def body(self, limit=1024, required=True):
+        size = int(self.headers.get('Content-Length', '0'))
+        if size == 0 and not required: return {}
+        if not 0 < size <= limit: raise GatewayError(400, 'invalid_body_size')
+        data = json.loads(self.rfile.read(size))
+        if not isinstance(data, dict): raise GatewayError(400, 'invalid_request')
+        return data
     def do_POST(self):
         try:
+            self.throttle()
+            if self.path == '/v1/devices':
+                # Automatic enrollment: no secret in the app. Issues a read-only,
+                # revocable device token, subject to the owner's enrollment mode and caps.
+                if REGISTRY is None: raise GatewayError(404, 'device_access_not_configured')
+                self.reply(201, REGISTRY.enroll(self.body())); return
+            if self.path.startswith('/v1/admin/'):
+                require_owner(authenticate(self.headers.get('Authorization', '')))
+                self.reply(200, admin_action(self.path, 'POST', self.body(required=False))); return
             if self.path != '/pair': raise GatewayError(404, 'not_found')
-            size = int(self.headers.get('Content-Length', '0'))
-            if not 0 < size < 1024: raise GatewayError(400, 'invalid_body_size')
-            data = json.loads(self.rfile.read(size))
+            data = self.body(1023)
             self.reply(200, {'accessToken': redeem_pair_code(data.get('code', ''))})
         except GatewayError as error: self.reply(error.status, {'error':error.code})
-        except (ValueError, TypeError, OSError): self.reply(400, {'error':'pairing_unavailable'})
+        except (ValueError, TypeError, OSError): self.reply(400, {'error':'pairing_unavailable' if self.path == '/pair' else 'invalid_request'})
+
+    def do_DELETE(self):
+        try:
+            self.throttle()
+            principal = authenticate(self.headers.get('Authorization', ''))
+            if self.path == '/v1/devices/self':
+                # A device may always remove its own access.
+                if principal['role'] != 'reader': raise GatewayError(400, 'not_a_device_credential')
+                REGISTRY.set_status(principal['id'], 'removed'); self.reply(200, {'removed': True}); return
+            require_owner(principal)
+            self.reply(200, admin_action(self.path, 'DELETE', {}))
+        except GatewayError as error: self.reply(error.status, {'error': error.code})
+        except (ValueError, TypeError, OSError): self.reply(400, {'error': 'invalid_request'})
 
     def do_PUT(self):
         global FORECA_KEY
         try:
-            if not ACCESS_TOKEN or not hmac.compare_digest(self.headers.get('Authorization', ''), 'Bearer ' + ACCESS_TOKEN): raise GatewayError(401, 'gateway_auth_required')
+            self.throttle()
+            # Vendor-key provisioning and administration are owner-only. Device tokens are refused.
+            require_owner(authenticate(self.headers.get('Authorization', '')))
+            if self.path.startswith('/v1/admin/'):
+                self.reply(200, admin_action(self.path, 'PUT', self.body())); return
             if self.path != '/credentials': raise GatewayError(404, 'not_found')
-            size = int(self.headers.get('Content-Length', '0'))
-            if not 0 < size <= 4096: raise GatewayError(400, 'invalid_body_size')
-            data = json.loads(self.rfile.read(size))
+            data = self.body(4096)
             key = data.get('forecaKey', '')
             if not isinstance(key, str) or len(key) < 12 or len(key) > 3000 or any(c.isspace() for c in key): raise GatewayError(400, 'invalid_key')
             with LOCK:
@@ -261,22 +543,29 @@ class Handler(BaseHTTPRequestHandler):
                 CACHE.clear()
             self.reply(200, {'configured': True})
         except GatewayError as error: self.reply(error.status, {'error': error.code})
-        except (ValueError, TypeError): self.reply(400, {'error': 'invalid_request'})
+        except (ValueError, TypeError, OSError): self.reply(400, {'error': 'invalid_request'})
 
     def do_GET(self):
         try:
-            # Global bound prevents unbounded per-IP dictionary allocation.
-            with LOCK:
-                recent = RATE['global']; now = time.time()
-                while recent and recent[0] < now - 60: recent.popleft()
-                if len(recent) >= 240: raise GatewayError(429, 'rate_limited')
-                recent.append(now)
+            self.throttle()
             parts = urlsplit(self.path); query = parse_qs(parts.query)
             if parts.path.startswith('/tiles/'):
                 self.reply(200, tile(parts.path, query), 'image/png'); return
-            if not ACCESS_TOKEN or not hmac.compare_digest(self.headers.get('Authorization', ''), 'Bearer ' + ACCESS_TOKEN): raise GatewayError(401, 'gateway_auth_required')
-            if parts.path == '/health': self.reply(200, {'configured': bool(FORECA_KEY), 'mapsEnabled': os.environ.get('FORECA_MAPS_ENABLED') == '1'}); return
+            principal = authenticate(self.headers.get('Authorization', ''))
+            reader = principal['role'] == 'reader'
+            if parts.path == '/v1/devices/self':
+                self.reply(200, REGISTRY.self_status(principal['id']) if reader else {'role': 'owner', 'status': 'active'}); return
+            if parts.path == '/v1/admin/devices':
+                require_owner(principal)
+                if REGISTRY is None: raise GatewayError(404, 'device_access_not_configured')
+                self.reply(200, REGISTRY.listing()); return
+            if parts.path == '/health': self.reply(200, {'configured': bool(FORECA_KEY), 'mapsEnabled': os.environ.get('FORECA_MAPS_ENABLED') == '1', 'role': principal['role'], 'status': principal['status']}); return
+            if reader:
+                if principal['status'] != 'active': raise GatewayError(403, 'device_pending')
+                if parts.path not in ('/forecast', '/nowcast', '/maps'): raise GatewayError(404, 'not_found')
+                REGISTRY.charge(principal['id'])
             lat, lon = coordinates(query)
+            if DEVICE_FILE: lat, lon = round(lat, 2), round(lon, 2)  # ~1 km: shared cache entries, less precise location upstream
             if parts.path == '/forecast': data = forecast(lat, lon)
             elif parts.path == '/nowcast': data = nowcast(lat, lon)
             elif parts.path == '/maps': data = maps(lat, lon)
@@ -298,7 +587,24 @@ class BoundedServer(ThreadingHTTPServer):
         try: super().process_request_thread(request, address)
         finally: self.slots.release()
 
+def devices_command(arguments):
+    """Owner administration on the server itself: `server.py devices list|approve ID|revoke ID|remove ID|mode MODE`."""
+    if REGISTRY is None: raise SystemExit('Set DEVICE_STATE_FILE first.')
+    try:
+        if arguments[:1] == ['list'] and len(arguments) == 1: pass
+        elif arguments[:1] == ['mode'] and len(arguments) == 2: REGISTRY.set_mode(arguments[1])
+        elif arguments[:1] in (['approve'], ['revoke'], ['remove']) and len(arguments) == 2:
+            REGISTRY.set_status(arguments[1], {'approve': 'active', 'revoke': 'revoked', 'remove': 'removed'}[arguments[0]])
+        else: raise SystemExit(devices_command.__doc__)
+    except GatewayError as error: raise SystemExit('Failed: ' + error.code)
+    listing = REGISTRY.listing()
+    print(f"Enrollment: {listing['enrollment']} · up to {listing['maxDevices']} devices · {listing['dailyRequestsPerDevice']} requests per device per day")
+    for row in listing['devices']:
+        seen = time.strftime('%Y-%m-%d %H:%MZ', time.gmtime(row['lastSeen'])) if row['lastSeen'] else 'never'
+        print(f"{row['deviceID']}  {row['status']:<8} code {row['code']}  last seen {seen}  {row['label']}")
+
 if __name__ == '__main__':
+    if sys.argv[1:2] == ['devices']: devices_command(sys.argv[2:]); raise SystemExit(0)
     if len(ACCESS_TOKEN) < 32: raise SystemExit('Set KLIERSKY_ACCESS_TOKEN to at least 32 random characters.')
     server = BoundedServer((os.environ.get('BIND', '127.0.0.1'), int(os.environ.get('PORT', '8787'))), Handler)
     cert, key = os.environ.get('TLS_CERT'), os.environ.get('TLS_KEY')

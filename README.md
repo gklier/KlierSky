@@ -4,14 +4,14 @@
 
 **A compact, native iPhone weather app with a little nostalgia and a clearer outlook.**
 
-SwiftUI · MapLibre Native · WidgetKit · Foreca · Open-Meteo
+SwiftUI · MapLibre Native · WidgetKit · Foreca · Open-Meteo · MET Norway · NWS
 
 [![iOS 17+](https://img.shields.io/badge/iOS-17%2B-087b96?style=flat-square)](#build-it)
 [![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm_Noncommercial-6e7bd8?style=flat-square)](LICENSE.md)
 [![Status: early beta](https://img.shields.io/badge/status-early_beta-f4bf60?style=flat-square)](#where-things-stand)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_a_Coffee-gklier-FFDD00?style=flat-square&logo=buymeacoffee&logoColor=000)](https://buymeacoffee.com/gklier)
 
-[The app](#a-forecast-you-can-read-at-a-glance) · [Screenshots](#a-look-inside) · [Coming next](#in-development-many-sources-one-forecast) · [Build your own](#build-it) · [Roadmap](#what-comes-next) · [Support](#support-kliersky)
+[The app](#a-forecast-you-can-read-at-a-glance) · [Many sources](#many-sources-one-forecast) · [Screenshots](#a-look-inside) · [Build](#build-it) · [Roadmap](#what-comes-next) · [Support](#support-kliersky)
 
 </div>
 
@@ -20,6 +20,19 @@ SwiftUI · MapLibre Native · WidgetKit · Foreca · Open-Meteo
 KlierSky brings the dense, useful feel of classic weather apps to a native SwiftUI interface. Current conditions come first, followed by the map, a meaningful 12-hour outlook, compact hourly rows, daily forecasts and deeper weather details.
 
 The design takes inspiration from what made Dark Sky easy to read, using original code and artwork, Apple system typography, and light, dark or system appearance. KlierSky is an independent project and is not affiliated with Apple or Dark Sky.
+
+## Many sources, one forecast
+
+![How the KlierSky blend weighs its sources](Docs/Images/blend.svg)
+
+Instead of trusting one service, KlierSky can average all of them: Foreca when connected, Open-Meteo, six global weather models, MET Norway and, in the US, the National Weather Service. The more reliable a source, the more it counts, and the app always shows which sources took part and with what weight.
+
+- **Weights start as a ranking, not a measurement.** Foreca is first. Once KlierSky has scored enough saved forecasts against nearby station readings, each weight is scaled by how close that source actually came.
+- **Nothing is invented.** A value no source supplied stays missing. Conditions come from the top-ranked source rather than an average of codes.
+- **No accuracy gain is claimed.** Averaging often softens big misses, but that has not been measured here. One-source mode remains a setting.
+- **Free first.** Every source above needs no paid key. [Terms and limits →](Docs/PROVIDERS.md)
+
+*Development branch: tested against recorded and live responses, not yet built into an app.*
 
 ## A look inside
 
@@ -32,27 +45,20 @@ The design takes inspiration from what made Dark Sky easy to read, using origina
 </tr>
 </table>
 
-*Actual simulator captures from the development app, November 9, 2026. New captures are queued for the next Mac session; they cannot be taken from a cloud session, and mockups are never substituted. These screenshots use Open-Meteo; sources and timestamps remain visible. Weather values are snapshots, not current conditions. No generated app mockups.*
-
-## In development: many sources, one forecast
-
-![How the KlierSky blend weighs its sources](Docs/Images/blend.svg)
-
-The next version averages many weather services instead of trusting one: Foreca when connected, Open-Meteo, six global weather models, MET Norway and, in the US, the National Weather Service. More reliable sources count for more, and the app shows which took part and with what weight. Alongside it come a past-to-future map timeline, hourly and daily widgets, and widgets that keep updating without reopening the app.
-
-This is **not in the code on this page yet**. It lives on the [`development/cloud-continuation`](https://github.com/gklier/KlierSky/tree/development/cloud-continuation) branch ([pull request](https://github.com/gklier/KlierSky/pull/1)) and has been tested against recorded and live responses, but not yet built into an app. It will move here once it builds and runs on a Mac. The weights start as a fixed ranking, not a measurement, and no accuracy gain is claimed.
+*Actual simulator captures from the development app, November 9, 2026. **They are out of date:** the blend, new widgets and combined map timeline came after them. New captures need Xcode and the iOS Simulator, which the cloud sessions do not have, so they are queued for the next Mac session rather than replaced with mockups. These screenshots use Open-Meteo; sources and timestamps remain visible. Weather values are snapshots, not current conditions. No generated app mockups.*
 
 ## Made for everyday weather
 
 | Feature | What it does |
 | --- | --- |
+| **Many sources, one forecast** | Development branch: a weighted blend of Foreca, Open-Meteo, six global models, MET Norway and the US National Weather Service, with every member and its share shown. |
 | **Conditions first** | Temperature, feels-like conditions and wind without burying the essentials. |
 | **Interactive radar** | Native MapLibre map with observed precipitation, playback and scrubbing. |
 | **A useful 12-hour graph** | Rain amounts or rain chance when relevant; a wind outlook when a complete dry forecast is available. Missing data stays missing. |
 | **Compact hours, expandable detail** | Six hourly rows at a glance, expandable to 24. |
 | **Daily forecasts** | Up to 14 days with day-by-day precipitation, wind, UV and sun details where returned by the provider. |
 | **Your places** | Current-location default, city search and persistent favorite locations. |
-| **Widgets** | Home Screen and Lock Screen WidgetKit families with city and unit configuration. |
+| **Widgets** | Home Screen and Lock Screen WidgetKit families with city and unit configuration; development branch adds larger hourly and daily widgets. |
 | **Your preferences** | Light/dark/system theme, units, clock format and visible weather details. |
 | **Honest data** | Source labels, cached-forecast notices, update times and unavailable values. |
 | **Weather Lab** | Gateway setup, provider preferences and bounded local diagnostic export. |
@@ -61,7 +67,7 @@ This is **not in the code on this page yet**. It lives on the [`development/clou
 
 KlierSky records forecasts before their target times and can compare temperatures against independent nearby US weather-station observations. It ranks providers separately by location and forecast lead time.
 
-Temperature selection requires **at least 20 common target hours** and a **0.5°F mean absolute error advantage**. Until then, the preferred provider stays in use. Verification is opt-in and currently runs while the app refreshes; it is not yet an always-on learning service.
+Temperature selection requires **at least 20 common target hours across 5 or more days**, a **0.5°F mean absolute error advantage**, and a held-out check on later hours. Until then, the preferred provider stays in use. Verification is opt-in and runs while the app refreshes (plus best-effort background refresh); it is not an always-on learning service.
 
 This is experimental **temperature selection**, not a claim that KlierSky is more accurate. Precipitation calibration and continuous server-side verification remain on the roadmap. [Read the feature status →](Docs/FEATURE-STATUS.md)
 
@@ -69,11 +75,13 @@ This is experimental **temperature selection**, not a claim that KlierSky is mor
 
 | Area | Current status |
 | --- | --- |
-| Main forecasts | Foreca through a configured private gateway; explicitly labeled Open-Meteo comparison/fallback. |
+| Main forecasts | Foreca through a configured private gateway; explicitly labeled Open-Meteo comparison/fallback. Development branch: a weighted blend of all reachable sources by default, starting from a fixed ranking; tested in checks and against the live services, not yet built into an app. No accuracy gain is claimed. |
 | Radar | Real observed RainViewer imagery. Animation performance still needs measured device profiling and tile prebuffering. |
-| Futurecast maps | Adapter and signed-tile gateway implemented; **not active with point-only Foreca access**. Licensed map access and live validation are still required. |
-| Widgets | Implemented and build-validated. Currently fetch Open-Meteo independently; shared Foreca data and full widget QA are pending. |
-| SideStore | Release packaging prepared; owner installation/refresh verification is pending. No App Store or TestFlight release. |
+| Futurecast maps | Development branch: NOAA HRRR model reflectivity for the contiguous US via Iowa Environmental Mesonet tiles, checked live at roughly 14 to 16 hours of look-ahead; not yet built or verified on a device. Foreca map adapter exists but is **not active with point-only Foreca access**. |
+| Alerts | Development branch: US National Weather Service alerts listed in the app. Not push notifications. |
+| Device access | Development branch: automatic per-device read-only gateway access with approval, quotas and revocation; tested, **not deployed**. |
+| Widgets | Implemented; the last simulator build predates the latest branch changes. They fetch free sources by themselves and say whether they show a blend or one source. Development branch reworks location handling and adds hourly and daily widgets; all of it awaits a build. |
+| SideStore | 0.3.1 (7) is the installed owner release. Development source is 0.4.0 (8), not yet built or packaged. No App Store or TestFlight release. |
 | Adaptive selection | Implemented with evidence gates. No measured accuracy advantage established. |
 
 **Observed radar is never presented as futurecast.** A 12-hour point precipitation graph is not a 12-hour forecast map. We preserve that distinction throughout the project.
@@ -88,7 +96,12 @@ cd KlierSky
 open KlierSky.xcodeproj
 ```
 
-Choose your own signing team and bundle identifiers on both targets, then press Run. **[Full guide: build, install through SideStore, optional Foreca gateway →](Docs/BUILD-AND-INSTALL.md)**
+1. Let Xcode resolve the MapLibre package.
+2. Select the **KlierSky** scheme and a simulator. For a real device, select your own signing team for both the app and widget targets; adjust bundle identifiers if needed.
+3. Run. Open-Meteo and observed radar can work without a Foreca key. Provider terms and service availability still apply.
+4. For Foreca, deploy your own HTTPS gateway and give the build its address through the `KLIERSKY_GATEWAY_URL` build setting (see `Config/Local.example.xcconfig`), or enter it under **Settings → Owner administration**. No personal server endpoint or credential is bundled in this repository. [Gateway setup →](Gateway/README.md)
+
+**[Full guide: build, install through SideStore, optional gateway →](Docs/BUILD-AND-INSTALL.md)**
 
 Open-Meteo forecasts and observed radar work without a Foreca key. Provider terms and service availability still apply. No personal server endpoint or credential is bundled in this repository.
 
@@ -98,13 +111,15 @@ Open-Meteo forecasts and observed radar work without a Foreca key. Provider term
 sh Tests/run.sh
 ```
 
-Portable Swift checks cover data decoding, provenance, stale data, timeline selection and adaptive verification safeguards. Python tests cover gateway normalization, missing values, pairing, signatures and map entitlement handling. Recorded fixtures are test inputs, not synthetic weather shown in the app.
+Portable Swift checks cover data decoding, the multi-source blend and its weights, provider switching and labels, stale data, timeline selection, radar buffering, alerts, device-access states and adaptive verification safeguards. Python tests cover gateway normalization, missing values, pairing, signatures, map entitlement handling and per-device access. They run on macOS and on Linux with a Swift toolchain. Recorded fixtures are test inputs, not synthetic weather shown in the app.
+
+`sh Tests/live.sh` is an optional smoke test of the public data sources (Open-Meteo and its models, MET Norway, NWS, RainViewer, IEM/HRRR) through the app's own code. It needs network access, uses a preset city and never contacts the Foreca gateway.
 
 ## Under the hood
 
 | Component | Responsibility |
 | --- | --- |
-| `Weather.swift` | Forecast models, provider requests and actual-frame timeline selection. |
+| `Weather.swift` | Forecast models, provider requests, free-source adapters, the weighted blend and actual-frame timeline selection. |
 | `ContentView.swift` / `ForecastDetails.swift` | Refresh coordination, compact UI and daily details. |
 | `RadarView.swift` | Native MapLibre weather layers and timeline interaction. |
 | `AppServices.swift` | Keychain, cache, diagnostics, favorites and location support. |
@@ -116,18 +131,21 @@ Portable Swift checks cover data decoding, provenance, stale data, timeline sele
 
 - [ ] Verify SideStore install, migration, widgets and refresh on a physical iPhone.
 - [ ] Activate and validate legitimate 12+ hour forecast maps with licensed access.
-- [ ] Add severe-weather alerts and reliable notification delivery.
+- [ ] Build and verify 0.4 on a Mac and iPhone (blend, alerts list, combined map timeline, automatic device access, new hourly and daily widgets).
+- [ ] Retake the screenshots above from the 0.4 build.
+- [ ] Decide on an Android version (a native app, tested by a friend, is the leading option).
+- [ ] Add reliable alert notification delivery.
 - [ ] Add genuine near-term rain timing where supported.
 - [ ] Collect and verify adaptive forecasts continuously on the server.
-- [ ] Share Foreca forecasts with widgets.
-- [ ] Add read-only per-device family access and revocation.
+- [ ] Share Foreca forecasts and measured blend weights with widgets.
+- [ ] Deploy read-only per-device family access and revocation (implemented, not deployed).
 - [ ] Profile radar, battery and memory; complete accessibility and offline testing.
 
 ## Privacy and data sources
 
 Foreca vendor credentials stay on the user's server; the iPhone stores a gateway access token in Keychain. Location is sent to the relevant weather/geocoding providers to obtain local results. Diagnostic messages are bounded, local and sanitized; nothing is uploaded automatically. Adaptive history stays on the device in the current implementation. This is not a claim of zero third-party network traffic.
 
-Credits: [Foreca](https://developer.foreca.com/), [Open-Meteo](https://open-meteo.com/), [RainViewer](https://www.rainviewer.com/), [MapLibre Native](https://maplibre.org/), [OpenFreeMap](https://openfreemap.org/), [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) and OpenMapTiles. Provider licenses, attribution, quotas and redistribution rights apply independently of this repository. See [project and third-party notices](NOTICE.md). [Provider notes →](Docs/PROVIDERS.md)
+Credits: [Foreca](https://developer.foreca.com/), [Open-Meteo](https://open-meteo.com/), [MET Norway](https://api.met.no/), the [US National Weather Service](https://www.weather.gov/), [Iowa Environmental Mesonet](https://mesonet.agron.iastate.edu/), [RainViewer](https://www.rainviewer.com/), [MapLibre Native](https://maplibre.org/), [OpenFreeMap](https://openfreemap.org/), [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) and OpenMapTiles. Provider licenses, attribution, quotas and redistribution rights apply independently of this repository. See [project and third-party notices](NOTICE.md). [Provider notes →](Docs/PROVIDERS.md)
 
 ## Support KlierSky
 

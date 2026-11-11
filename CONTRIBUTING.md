@@ -6,6 +6,7 @@ Use Apple system typography and original assets. Preserve compact layout, source
 
 Provider access and redistribution rights must be verified before integrating new weather products. Do not turn observed radar into futurecast or infer precision beyond a provider's actual resolution.
 
+Keep the README, `Docs/` and screenshots current with every finished change. Screenshots must be real captures from the app; if one is out of date, say so beside it.
 ## Contributions and the license
 
 KlierSky is under the PolyForm Noncommercial License and the author may offer it commercially. Until a contributor agreement exists, **please open an issue to discuss a change instead of sending code**, so the author keeps the right to license the whole project. Suggestions, bug reports and your own noncommercial forks are welcome.

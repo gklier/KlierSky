@@ -1,0 +1,13 @@
+// Copy to Config/Local.xcconfig (ignored by git) and build with:
+//   xcodebuild -project KlierSky.xcodeproj -scheme KlierSky -xcconfig Config/Local.xcconfig ...
+// or pass the settings on the xcodebuild command line.
+//
+// The gateway ADDRESS is not a secret, but it is deployment detail and stays out of the repository.
+// Never put the Foreca key, the owner token or any other credential here: the app obtains its own
+// read-only device access from the gateway at first launch.
+//
+// xcconfig treats // as a comment, so write the address with $() between the slashes.
+KLIERSKY_GATEWAY_URL = https:/$()/weather.example.invalid
+
+// Your own signing team for the app and widget targets (SideStore re-signs anyway).
+// DEVELOPMENT_TEAM = XXXXXXXXXX

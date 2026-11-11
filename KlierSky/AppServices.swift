@@ -31,16 +31,17 @@ enum AppFiles {
 }
 enum SecureStore {
     private static let service = "com.klier.KlierSky.gateway"
-    static func read() -> String {
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: "access", kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne]
+    /// "access" is the owner's administrative token (owner's phone only). "device-access" is this install's own read-only record.
+    static func read(account: String = "access") -> String {
+        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account, kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne]
         var result: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let data = result as? Data else { return "" }
         return String(data: data, encoding: .utf8) ?? ""
     }
-    static func save(_ token: String) throws {
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: "access"]
+    static func save(_ token: String, account: String = "access", afterFirstUnlock: Bool = false) throws {
+        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
         if token.isEmpty { let status = SecItemDelete(query as CFDictionary); guard status == errSecSuccess || status == errSecItemNotFound else { throw URLError(.cannotWriteToFile) }; return }
-        let attributes: [String: Any] = [kSecValueData as String: Data(token.utf8), kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly]
+        let attributes: [String: Any] = [kSecValueData as String: Data(token.utf8), kSecAttrAccessible as String: afterFirstUnlock ? kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly : kSecAttrAccessibleWhenUnlockedThisDeviceOnly]
         var status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
         if status == errSecItemNotFound { status = SecItemAdd(query.merging(attributes) { _, b in b } as CFDictionary, nil) }
         guard status == errSecSuccess else { throw URLError(.cannotWriteToFile) }
@@ -56,7 +57,10 @@ struct CachedForecast: Codable {
     }
     func save() {
         if let data = try? JSONEncoder().encode(self) { try? data.write(to: AppFiles.url("last-forecast.json"), options: [.atomic, .completeFileProtectionUnlessOpen]) }
-        if WidgetStorage.sharedGroup != nil { WidgetStorage.save(place: place, forecast: forecast, fetchedAt: fetchedAt) }
+        if WidgetStorage.sharedGroup != nil {
+            WidgetStorage.save(place: place, forecast: forecast, fetchedAt: fetchedAt)
+            if place.name == "Current location" { WidgetStorage.saveLastLocation(place, at: fetchedAt) }
+        }
         WidgetCenter.shared.reloadAllTimelines()
     }
 }
@@ -70,14 +74,27 @@ enum Gateway {
         guard let url = c.url else { throw URLError(.badURL) }; return url
     }
     struct PairReply: Decodable { let accessToken: String }
-    struct Health: Decodable { let configured: Bool; let mapsEnabled: Bool }
-    static func health() async throws -> Health { try await Network.get(url("health"), bearer: SecureStore.read()) }
+    struct Health: Decodable { let configured: Bool; let mapsEnabled: Bool; var role: String? = nil }
+    static func health(token: String) async throws -> Health { try await Network.get(url("health"), bearer: token) }
     static func pair(_ code: String) async throws {
         var request = URLRequest(url: try url("pair")); request.httpMethod = "POST"; request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Content-Type"); request.httpBody = try JSONEncoder().encode(["code":code])
         let (data, response) = try await URLSession.shared.data(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.userAuthenticationRequired) }
         let reply = try JSONDecoder().decode(PairReply.self, from: data); try SecureStore.save(reply.accessToken)
+    }
+    // Owner administration. These need the owner's token; device tokens are refused by the service.
+    struct Device: Decodable, Identifiable { let deviceID: String; let label: String; let code: String; let status: String; let created: Double; let lastSeen: Double; let requestsToday: Int; var id: String { deviceID } }
+    struct DeviceList: Decodable { let enrollment: String; let maxDevices: Int; let dailyRequestsPerDevice: Int; let upstreamBudget: Int; let upstreamUsedToday: Int; let devices: [Device] }
+    static func devices() async throws -> DeviceList { try await Network.get(url("v1/admin/devices"), bearer: SecureStore.read()) }
+    static func admin(_ method: String, _ path: String, body: [String: String]? = nil) async throws -> DeviceList {
+        var request = URLRequest(url: try url(path)); request.httpMethod = method; request.timeoutInterval = 15
+        request.setValue("Bearer " + SecureStore.read(), forHTTPHeaderField: "Authorization")
+        if let body { request.setValue("application/json", forHTTPHeaderField: "Content-Type"); request.httpBody = try JSONEncoder().encode(body) }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let status = (response as? HTTPURLResponse)?.statusCode else { throw URLError(.badServerResponse) }
+        guard status == 200 else { throw HTTPFailure(status: status, code: HTTPFailure.code(in: data)) }
+        return try JSONDecoder().decode(DeviceList.self, from: data)
     }
     static func provisionForeca(_ key: String) async throws {
         var request = URLRequest(url: try url("credentials")); request.httpMethod = "PUT"; request.timeoutInterval = 20
@@ -87,11 +104,11 @@ enum Gateway {
         let (_, response) = try await URLSession.shared.data(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.userAuthenticationRequired) }
     }
-    static func forecast(_ place: Place) async throws -> Forecast { let result: Forecast = try await Network.get(url("forecast", place: place), bearer: SecureStore.read()); return try result.validated() }
-    static func frames(_ place: Place) async throws -> [WeatherFrame] { try await Network.get(url("maps", place: place), bearer: SecureStore.read()) }
+    static func forecast(_ place: Place, token: String) async throws -> Forecast { let result: Forecast = try await Network.get(url("forecast", place: place), bearer: token); return try result.validated() }
+    static func frames(_ place: Place, token: String) async throws -> [WeatherFrame] { try await Network.get(url("maps", place: place), bearer: token) }
     struct Minute: Codable, Identifiable { var id: Date { time }; let time: Date; let rate: Double }
     struct Nowcast: Codable { let resolution: Int; let points: [Minute]; var isTrueMinute: Bool { resolution == 1 } }
-    static func nowcast(_ place: Place) async throws -> Nowcast { try await Network.get(url("nowcast", place: place), bearer: SecureStore.read()) }
+    static func nowcast(_ place: Place, token: String) async throws -> Nowcast { try await Network.get(url("nowcast", place: place), bearer: token) }
 }
 @MainActor @Observable final class LocationService: NSObject, @preconcurrency CLLocationManagerDelegate {
     private let manager = CLLocationManager()

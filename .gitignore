@@ -16,3 +16,5 @@ __pycache__/
 *.key
 accuracy.json
 last-forecast.json
+
+Config/Local.xcconfig
