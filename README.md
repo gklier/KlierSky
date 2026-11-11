@@ -24,15 +24,15 @@ The design takes inspiration from what made Dark Sky easy to read, using origina
 ## A look inside
 
 <table>
-<tr><th>Clear in daylight</th><th>Comfortable after dark</th><th>The details behind the day</th></tr>
+<tr><th>Clear in daylight</th><th>Comfortable after dark</th><th>From radar to futurecast</th></tr>
 <tr>
-<td width="33%"><img src="Docs/Images/forecast-light.png" alt="KlierSky light appearance with current conditions, radar, wind outlook and hourly temperatures" width="300"></td>
+<td width="33%"><img src="Docs/Images/forecast-light.png" alt="KlierSky light appearance with current conditions, radar, precipitation outlook and hourly temperatures" width="300"></td>
 <td width="33%"><img src="Docs/Images/forecast-dark.png" alt="KlierSky dark appearance with a compact forecast layout" width="300"></td>
-<td width="33%"><img src="Docs/Images/daily-detail.png" alt="Daily forecast detail showing precipitation, wind, UV and sunrise and sunset" width="300"></td>
+<td width="33%"><img src="Docs/Images/radar-timeline.png" alt="Combined map timeline showing observed radar, the boundary to model futurecast, and a precipitation legend" width="300"></td>
 </tr>
 </table>
 
-*Actual simulator captures from the development app, November 9, 2026. New captures are queued for the next Mac session; they cannot be taken from a cloud session, and mockups are never substituted. These screenshots use Open-Meteo; sources and timestamps remain visible. Weather values are snapshots, not current conditions. No generated app mockups.*
+*Actual iPhone simulator captures from KlierSky 0.4.0, November 10, 2026. Weather values are snapshots. Forecast sources and map timestamps are visible in the app.*
 
 ## In development: many sources, one forecast
 
@@ -40,7 +40,7 @@ The design takes inspiration from what made Dark Sky easy to read, using origina
 
 The next version averages many weather services instead of trusting one: Foreca when connected, Open-Meteo, six global weather models, MET Norway and, in the US, the National Weather Service. More reliable sources count for more, and the app shows which took part and with what weight. Alongside it come a past-to-future map timeline, hourly and daily widgets, and widgets that keep updating without reopening the app.
 
-This is **not in the code on this page yet**. It lives on the [`development/cloud-continuation`](https://github.com/gklier/KlierSky/tree/development/cloud-continuation) branch ([pull request](https://github.com/gklier/KlierSky/pull/1)) and has been tested against recorded and live responses, but not yet built into an app. It will move here once it builds and runs on a Mac. The weights start as a fixed ranking, not a measurement, and no accuracy gain is claimed.
+This is **not in the code on this page yet**. It lives on the [`development/cloud-continuation`](https://github.com/gklier/KlierSky/tree/development/cloud-continuation) branch ([pull request](https://github.com/gklier/KlierSky/pull/1)) and has been tested against recorded and live responses, and the 0.4.0 development build has run in the iPhone simulator. The weights start as a fixed ranking, not a measurement, and no accuracy gain is claimed.
 
 ## Made for everyday weather
 
