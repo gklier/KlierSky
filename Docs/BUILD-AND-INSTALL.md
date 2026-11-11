@@ -63,4 +63,6 @@ Needs macOS with Xcode's command-line tools (or any Swift toolchain with Foundat
 
 ## What you may and may not do
 
-See [NOTICE.md](../NOTICE.md). Weather and map data come from third parties with their own terms (Open-Meteo is free for non-commercial use only; RainViewer's free API is for personal use). Using your own build for yourself is what this guide is for; check those terms before sharing or selling anything built from it.
+KlierSky is licensed under the [PolyForm Noncommercial License](../LICENSE.md): you may build, run, modify and share it for personal and noncommercial use. Selling it or building a business on it needs the author's written permission. See [NOTICE.md](../NOTICE.md) for the plain-words summary.
+
+Weather and map data come from third parties with their own terms (Open-Meteo is free for non-commercial use only; RainViewer's free API is for personal use). Those terms apply to your build too.
