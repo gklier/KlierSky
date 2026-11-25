@@ -8,6 +8,15 @@ import Foundation
     }
     static func main() throws {
         let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+        var backwards = RadarBuffer(count: 60, target: 30, now: t0)
+        backwards.tick(now: t0)
+        backwards.setTarget(29, now: t0.addingTimeInterval(0.1))
+        precondition(backwards.direction == -1 && backwards.residents.prefix(3).elementsEqual([29, 28, 30]), "reverse scrubbing prioritizes the previous frame")
+        backwards.tick(now: t0.addingTimeInterval(0.1))
+        precondition(backwards.states[29] != .idle, "scrubbing does not wait behind unrelated preloads")
+        var shortReverse = RadarBuffer(count: 13, target: 12, now: t0)
+        shortReverse.setTarget(11, now: t0)
+        precondition(shortReverse.residents.prefix(3).elementsEqual([11, 10, 9]))
 
         // --- Radar buffer: bounded loading, no half-loaded frame during playback ---
         var buffer = RadarBuffer(count: 13, target: 12, now: t0)

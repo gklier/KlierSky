@@ -1,0 +1,27 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.klier.kliersky'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'com.klier.kliersky'
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName '0.1.0-alpha'
+        buildConfigField 'String', 'GATEWAY_URL', '"https://weather.klierapps.tech"'
+    }
+    signingConfigs {
+        release {
+            if (System.getenv('KLIERSKY_KEYSTORE_PATH')) {
+                storeFile file(System.getenv('KLIERSKY_KEYSTORE_PATH'))
+                storePassword System.getenv('KLIERSKY_STORE_PASSWORD')
+                keyAlias 'kliersky-upload'
+                keyPassword System.getenv('KLIERSKY_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes { release { signingConfig signingConfigs.release } }
+    buildFeatures { buildConfig true }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+dependencies { implementation 'org.maplibre.gl:android-sdk:11.11.0' }

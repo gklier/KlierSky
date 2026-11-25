@@ -163,11 +163,13 @@ import BackgroundTasks
 /// it is best effort and never a guarantee of continuous coverage.
 enum BackgroundCollection {
     static let identifier = "KlierSky.collect"
-    private static var wanted: Bool { UserDefaults.standard.bool(forKey: "backgroundCollection") && UserDefaults.standard.bool(forKey: "verifyStations") }
+    private static var collecting: Bool { UserDefaults.standard.bool(forKey: "backgroundCollection") && UserDefaults.standard.bool(forKey: "verifyStations") }
+    private static var notifying: Bool { UserDefaults.standard.bool(forKey: "rainNotifications") }
+    private static var wanted: Bool { collecting || notifying }
     static func schedule() {
-        guard wanted else { return }
+        guard wanted else { cancel(); return }
         let request = BGAppRefreshTaskRequest(identifier: identifier)
-        request.earliestBeginDate = Date().addingTimeInterval(3 * 3600)
+        request.earliestBeginDate = Date().addingTimeInterval(notifying ? 30 * 60 : 3 * 3600)
         try? BGTaskScheduler.shared.submit(request)
     }
     static func cancel() { BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier) }
@@ -179,11 +181,28 @@ enum BackgroundCollection {
         async let open = capture { try await Forecast.load(place, timeout: 12) }
         async let foreca: Result<Forecast, Error>? = token != nil ? await capture { try await Gateway.forecast(place, token: token!) } : nil
         var series: [SourceSeries] = []
-        if case .success(var value) = await open { value.source = "Open-Meteo"; series.append(SourceSeries(value)) }
-        if case .success(var value)? = await foreca { value.source = "Foreca"; series.append(SourceSeries(value)) }
+        var forecasts: [Forecast] = []
+        if case .success(var value) = await open { value.source = "Open-Meteo"; series.append(SourceSeries(value)); forecasts.append(value) }
+        if case .success(var value)? = await foreca { value.source = "Foreca"; series.append(SourceSeries(value)); forecasts.append(value) }
         if (UserDefaults.standard.string(forKey: "forecastMode") ?? "blend") == "blend" { series += await FreeSources.load(place) }
-        AdaptiveStore.shared.capture(series, at: place)
-        await AdaptiveStore.shared.collectIfDue(place)
+        guard !Task.isCancelled else { return }
+        if collecting {
+            AdaptiveStore.shared.capture(series, at: place)
+            await AdaptiveStore.shared.collectIfDue(place)
+        }
+        if notifying {
+            let blending = (UserDefaults.standard.string(forKey: "forecastMode") ?? "blend") == "blend"
+            let preferred = UserDefaults.standard.string(forKey: "preferredProvider") ?? "Foreca"
+            let base = forecasts.first(where: { $0.source == preferred }) ?? forecasts.first
+            if let base {
+                let names = series.map(\.source)
+                let tables = (0...3).map { AdaptiveStore.shared.blendWeights(sources: names, place: place, bucket: $0) }
+                let result = blending ? Blend.combine(series, weights: { tables[$0].weights }, measured: tables[0].measured) ?? base : base
+                let selected = UserDefaults.standard.data(forKey: "selectedPlace").flatMap { try? JSONDecoder().decode(Place.self, from: $0) }
+                guard selected?.id == place.id, !Task.isCancelled else { return }
+                await RainNotifications.shared.update(forecast: result, hours: result.hours, place: place, fetchedAt: Date())
+            }
+        }
         Diagnostics.shared.add("accuracy", "Background collection ran")
     }
 }

@@ -2,6 +2,8 @@
 """Personal Foreca gateway. Vendor credentials never leave this process.
 Run behind an HTTPS reverse proxy, or set TLS_CERT and TLS_KEY. Loopback by default.
 """
+from station import StationService, StationError
+
 import base64
 import contextlib
 import fcntl
@@ -54,6 +56,8 @@ def env_int(name, default, low, high):
 # Per-device read-only access. Disabled unless DEVICE_STATE_FILE is set, so an
 # existing owner-token deployment behaves exactly as before until migrated.
 DEVICE_FILE = os.environ.get('DEVICE_STATE_FILE', '')
+STATIONS = StationService(os.environ.get('STATION_STATE_DIR') or (os.path.dirname(DEVICE_FILE or KEY_FILE) if DEVICE_FILE or KEY_FILE else None))
+
 ENROLLMENT_MODES = ('closed', 'approval', 'open')
 ENROLLMENT_DEFAULT = os.environ.get('ENROLLMENT_MODE', 'closed')
 if ENROLLMENT_DEFAULT not in ENROLLMENT_MODES: raise SystemExit('ENROLLMENT_MODE must be closed, approval or open.')
@@ -470,6 +474,12 @@ def admin_action(path, method, body):
     else: raise GatewayError(404, 'not_found')
     return REGISTRY.listing()
 
+def station_principal(principal):
+    if principal['status'] != 'active':
+        raise GatewayError(403, 'device_pending')
+    if principal['role'] == 'reader':
+        REGISTRY.charge(principal['id'])
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_): pass  # Never log paths, signatures, coordinates or headers.
     def reply(self, status, data, content='application/json'):
@@ -505,20 +515,23 @@ class Handler(BaseHTTPRequestHandler):
             if self.path != '/pair': raise GatewayError(404, 'not_found')
             data = self.body(1023)
             self.reply(200, {'accessToken': redeem_pair_code(data.get('code', ''))})
-        except GatewayError as error: self.reply(error.status, {'error':error.code})
+        except (GatewayError, StationError) as error: self.reply(error.status, {'error':error.code})
         except (ValueError, TypeError, OSError): self.reply(400, {'error':'pairing_unavailable' if self.path == '/pair' else 'invalid_request'})
 
     def do_DELETE(self):
         try:
             self.throttle()
             principal = authenticate(self.headers.get('Authorization', ''))
+            if self.path == '/v1/station':
+                station_principal(principal)
+                self.reply(200, STATIONS.remove(principal)); return
             if self.path == '/v1/devices/self':
                 # A device may always remove its own access.
                 if principal['role'] != 'reader': raise GatewayError(400, 'not_a_device_credential')
                 REGISTRY.set_status(principal['id'], 'removed'); self.reply(200, {'removed': True}); return
             require_owner(principal)
             self.reply(200, admin_action(self.path, 'DELETE', {}))
-        except GatewayError as error: self.reply(error.status, {'error': error.code})
+        except (GatewayError, StationError) as error: self.reply(error.status, {'error': error.code})
         except (ValueError, TypeError, OSError): self.reply(400, {'error': 'invalid_request'})
 
     def do_PUT(self):
@@ -526,7 +539,11 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.throttle()
             # Vendor-key provisioning and administration are owner-only. Device tokens are refused.
-            require_owner(authenticate(self.headers.get('Authorization', '')))
+            principal = authenticate(self.headers.get('Authorization', ''))
+            if self.path == '/v1/station':
+                station_principal(principal)
+                self.reply(200, STATIONS.configure(principal, self.body(4096))); return
+            require_owner(principal)
             if self.path.startswith('/v1/admin/'):
                 self.reply(200, admin_action(self.path, 'PUT', self.body())); return
             if self.path != '/credentials': raise GatewayError(404, 'not_found')
@@ -542,7 +559,7 @@ class Handler(BaseHTTPRequestHandler):
                 FORECA_KEY = key
                 CACHE.clear()
             self.reply(200, {'configured': True})
-        except GatewayError as error: self.reply(error.status, {'error': error.code})
+        except (GatewayError, StationError) as error: self.reply(error.status, {'error': error.code})
         except (ValueError, TypeError, OSError): self.reply(400, {'error': 'invalid_request'})
 
     def do_GET(self):
@@ -552,6 +569,9 @@ class Handler(BaseHTTPRequestHandler):
             if parts.path.startswith('/tiles/'):
                 self.reply(200, tile(parts.path, query), 'image/png'); return
             principal = authenticate(self.headers.get('Authorization', ''))
+            if parts.path == '/v1/station':
+                station_principal(principal)
+                self.reply(200, STATIONS.get(principal)); return
             reader = principal['role'] == 'reader'
             if parts.path == '/v1/devices/self':
                 self.reply(200, REGISTRY.self_status(principal['id']) if reader else {'role': 'owner', 'status': 'active'}); return
@@ -571,7 +591,7 @@ class Handler(BaseHTTPRequestHandler):
             elif parts.path == '/maps': data = maps(lat, lon)
             else: raise GatewayError(404, 'not_found')
             self.reply(200, data)
-        except GatewayError as error: self.reply(error.status, {'error': error.code})
+        except (GatewayError, StationError) as error: self.reply(error.status, {'error': error.code})
         except (KeyError, TypeError, ValueError): self.reply(502, {'error': 'upstream_schema_changed'})
         except (BrokenPipeError, ConnectionResetError): pass
         except Exception: self.reply(500, {'error': 'gateway_internal_error'})

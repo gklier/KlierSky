@@ -16,7 +16,7 @@ struct ContentView: View {
     @AppStorage("showComparison") private var showComparison = false
     @ScaledMetric(relativeTo: .largeTitle) private var temperatureSize: CGFloat = 72
     @ScaledMetric(relativeTo: .largeTitle) private var symbolSize: CGFloat = 42
-    enum Sheet: String, Identifiable { case search, settings, alerts, adaptive, owner, lab; var id: String { rawValue } }
+    enum Sheet: String, Identifiable { case search, settings, alerts, adaptive, owner, lab, history, detailForecast; var id: String { rawValue } }
     private var units: Units { Units(celsius: celsius, inches: rainInches, clock24: clock24) }
 
     var body: some View {
@@ -31,6 +31,12 @@ struct ContentView: View {
                         HourlySection(model: model).id("hourly")
                         if showDaily { DailyForecastSection(forecast: forecast).id("daily") }
                         if showDetails { WeatherStatistics(forecast: forecast, air: model.air, alerts: model.alerts) { sheet = .alerts }.id("details") }
+                        PersonalStationCard(model: model)
+                        HStack {
+                            Button { sheet = .detailForecast } label: { Label("Detail forecasts", systemImage: "chart.xyaxis.line") }
+                            Spacer()
+                            Button { sheet = .history } label: { Label("History", systemImage: "clock.arrow.circlepath") }
+                        }.font(.subheadline).padding(.vertical, 8)
                         if showComparison { ProviderComparison(forecasts: [forecast] + model.alternatives) }
                     } else if !model.hasSelectedLocation {
                         welcome
@@ -72,6 +78,8 @@ struct ContentView: View {
                 switch item {
                 case .search: LocationSearch(usingCurrent: model.usingCurrentLocation, useCurrent: { model.useLocation() }) { model.select($0) }
                 case .settings: SettingsView(model: model)
+                case .history: NavigationStack { if let forecast = model.forecast { WeatherHistoryView(place: model.place, forecast: forecast) } }.presentationDragIndicator(.visible)
+                case .detailForecast: NavigationStack { DetailForecastView(model: model) }.presentationDragIndicator(.visible)
                 case .alerts: AlertListView(feed: model.alerts, placeName: model.place.name, zone: model.zone)
                 // Reached from Settings in normal use; direct entry exists for development screenshots.
                 case .adaptive: NavigationStack { AccuracyPanel(model: model) }

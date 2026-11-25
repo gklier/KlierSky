@@ -315,3 +315,87 @@ struct HourlySection: View {
         .accessibilityLabel("\(index == 0 ? "Now" : units.hour(hour.time, zone: zone)), \(WeatherCode.text(hour.code)), \(metric.title) \(value == nil ? "unavailable" : metric.text(hour, units))")
     }
 }
+
+/// Forecast details use the same hourly values and provenance as the main forecast.
+struct DetailForecastView: View {
+    let model: WeatherModel
+    @Environment(\.units) private var units
+    @State private var metric = HourlyMetric.uv
+    @State private var selectedTime: Date?
+    private var hours: [Hour] { Array(model.hours.prefix(48)) }
+    private var available: [HourlyMetric] { HourlyMetric.allCases.filter { item in hours.contains { item.value($0) != nil } } }
+    private var selected: Hour? {
+        guard let selectedTime else { return nil }
+        return hours.filter { metric.value($0) != nil }.min { abs($0.time.timeIntervalSince(selectedTime)) < abs($1.time.timeIntervalSince(selectedTime)) }
+    }
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                Picker("Weather detail", selection: $metric) {
+                    ForEach(available) { item in Text(item.title).tag(item) }
+                }.pickerStyle(.menu)
+                if let selected {
+                    HStack { Text(selected.time, format: .dateTime.weekday()) + Text(" " + units.hour(selected.time, zone: model.zone)); Spacer(); Text(metric.text(selected, units)).font(.title2.weight(.semibold)) }
+                }
+                if hours.contains(where: { metric.value($0) != nil }) {
+                    Chart(hours) { hour in
+                        if let value = metric.value(hour) {
+                            PointMark(x: .value("Time", hour.time), y: .value(metric.title, converted(value)))
+                                .foregroundStyle(metric.tint).symbolSize(14)
+                                .accessibilityLabel(units.clock(hour.time, zone: model.zone))
+                                .accessibilityValue(metric.text(hour, units))
+                        }
+                    }
+                    .chartYAxisLabel(axisUnit)
+                    .chartXSelection(value: $selectedTime)
+                    .chartXAxis {
+                        AxisMarks(values: .stride(by: .hour, count: 8)) { value in
+                            AxisValueLabel {
+                                if let date = value.as(Date.self) {
+                                    VStack(spacing: 2) {
+                                        Text(date, format: .dateTime.weekday(.abbreviated))
+                                        Text(units.hour(date, zone: model.zone))
+                                    }.font(.caption2)
+                                }
+                            }
+                        }
+                    }
+                    .frame(height: 230)
+                    Text("Touch the chart for an hourly reading.").font(.caption).foregroundStyle(.secondary)
+                } else { Text("This forecast has no \(metric.title.lowercased()) values.") }
+                ForEach(hours) { hour in
+                    HStack {
+                        Text(hour.time, format: .dateTime.weekday(.abbreviated)) + Text(" " + units.hour(hour.time, zone: model.zone))
+                        Spacer()
+                        Text(metric.text(hour, units)).monospacedDigit()
+                    }.font(.subheadline)
+                    Divider()
+                }
+                SourceNote(text: "Hourly forecast · \(model.providerStatus)")
+            }.padding(20)
+        }
+        .environment(\.timeZone, model.zone)
+        .navigationTitle("Detail forecasts").navigationBarTitleDisplayMode(.inline)
+        .onAppear { if !available.contains(metric), let first = available.first { metric = first } }
+        .onChange(of: metric) { selectedTime = nil }
+    }
+    private var axisUnit: String {
+        switch metric {
+        case .temperature, .feels, .dewPoint: return units.celsius ? "°C" : "°F"
+        case .wind, .gust: return units.windUnit
+        case .rain: return units.inches ? "in" : "mm"
+        case .chance, .humidity, .clouds: return "%"
+        case .pressure: return units.celsius ? "hPa" : "inHg"
+        case .uv: return "UV index"
+        }
+    }
+    private func converted(_ value: Double) -> Double {
+        switch metric {
+        case .temperature, .feels, .dewPoint: return units.temperatureValue(value)
+        case .wind, .gust: return units.windValue(value)
+        case .rain: return units.inches ? value / 25.4 : value
+        case .pressure: return units.celsius ? value : value * 0.0295299830714
+        default: return value
+        }
+    }
+}

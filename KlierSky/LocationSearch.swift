@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 struct LocationSearch: View {
     var usingCurrent = false
     var useCurrent: () -> Void = {}
@@ -21,6 +22,9 @@ struct LocationSearch: View {
                         Button { useCurrent(); dismiss() } label: {
                             HStack { Label("Current location", systemImage: "location.fill"); Spacer(); if usingCurrent { Image(systemName: "checkmark").foregroundStyle(Sky.accent) } }
                         }
+                    }
+                    Section {
+                        NavigationLink("Saved locations map") { SavedLocationsMap(usingCurrent: usingCurrent, useCurrent: { useCurrent(); dismiss() }) { select($0); dismiss() } }
                     }
                     if !FavoriteLocations.shared.places.isEmpty {
                         Section("Favorites") {
@@ -64,5 +68,41 @@ struct LocationSearch: View {
                     } catch is CancellationError { } catch { if !Task.isCancelled { message = "Search is unavailable right now. Check the connection and try again." } }
                 }
         }
+    }
+}
+
+
+struct SavedLocationsMap: View {
+    var usingCurrent = false
+    var useCurrent: () -> Void = {}
+    let select: (Place) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var position = MapCameraPosition.automatic
+    @State private var selectedID: String?
+    private var places: [Place] { FavoriteLocations.shared.places }
+    var body: some View {
+        Map(position: $position, selection: $selectedID) {
+            ForEach(places) { place in
+                Marker(place.name, systemImage: "star.fill", coordinate: CLLocationCoordinate2D(latitude: place.latitude, longitude: place.longitude))
+                    .tint(Sky.accent).tag(place.id)
+            }
+        }
+        .mapControls { MapCompass(); MapScaleView() }
+        .safeAreaInset(edge: .bottom) {
+            VStack(alignment: .leading, spacing: 12) {
+                if let place = places.first(where: { $0.id == selectedID }) {
+                    Text(place.name).font(.headline)
+                    Button("Show forecast") { select(place); dismiss() }.buttonStyle(.borderedProminent)
+                } else {
+                    Text(places.isEmpty ? "Save a city with the star in Locations to put it on this map." : "Tap a saved location to see its forecast.")
+                        .font(.subheadline)
+                }
+                Button { useCurrent(); dismiss() } label: {
+                    Label("Use current location", systemImage: "location.fill")
+                }
+            }.frame(maxWidth: .infinity, alignment: .leading).padding().background(.regularMaterial)
+        }
+        .navigationTitle("Saved locations").navigationBarTitleDisplayMode(.inline)
+        .accessibilityLabel("Map of saved weather locations")
     }
 }

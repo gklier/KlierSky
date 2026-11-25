@@ -34,6 +34,10 @@
 		E825BDE873AEE1AA358DBE96 /* AppServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1926C95BC13EB08C847086 /* AppServices.swift */; };
 		F2B44DA7569736BB34F609F2 /* KlierSkyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70E006813B82CAAA1F93A1D7 /* KlierSkyApp.swift */; };
 		FF5C2717FCB4EB46585F1E3C /* WidgetStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8815169B5371DDD522D3F60 /* WidgetStorage.swift */; };
+		C2C4E8D1566669E350EAAC77 /* PersonalStation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12B6B63ED36BBE28881295F4 /* PersonalStation.swift */; };
+		B07B8C88A774E3F4B2325207 /* WeatherHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8EA8BBAB21C32AA2D2106BD /* WeatherHistory.swift */; };
+		3FB94C84FF4946EC77595D10 /* RainNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BF5F0C74D143A7BF46F40BD /* RainNotifications.swift */; };
+		F4934CEE92B86BD1B50B30FE /* RainNotificationCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E87E9DB94595DF2F3B55920A /* RainNotificationCore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -87,6 +91,10 @@
 		AABBCCDD0011223344556601 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C8F6F227435F55BB1741C85B /* RadarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarView.swift; sourceTree = "<group>"; };
 		F231F6FE549E641636571AA6 /* KlierSkyWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; path = KlierSkyWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		12B6B63ED36BBE28881295F4 /* PersonalStation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalStation.swift; sourceTree = "<group>"; };
+		D8EA8BBAB21C32AA2D2106BD /* WeatherHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherHistory.swift; sourceTree = "<group>"; };
+		7BF5F0C74D143A7BF46F40BD /* RainNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RainNotifications.swift; sourceTree = "<group>"; };
+		E87E9DB94595DF2F3B55920A /* RainNotificationCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RainNotificationCore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -143,6 +151,10 @@
 				1EA18FBCC75071A03939E009 /* Weather.swift */,
 				306E6784D00C6D938C141835 /* AdaptiveView.swift */,
 				A24AE788FFF0B5B87BF96974 /* SettingsView.swift */,
+				E87E9DB94595DF2F3B55920A /* RainNotificationCore.swift */,
+				7BF5F0C74D143A7BF46F40BD /* RainNotifications.swift */,
+				D8EA8BBAB21C32AA2D2106BD /* WeatherHistory.swift */,
+				12B6B63ED36BBE28881295F4 /* PersonalStation.swift */,
 				D45ADE0FC379997F7CA6293E /* TrendViews.swift */,
 				E5582E5F290BFA22ADDA9472 /* AlertsView.swift */,
 				FB59D01F5F1F14980F4E2672 /* RadarCore.swift */,
@@ -274,6 +286,10 @@
 				D9853ECE0A815B6990247DE0 /* Weather.swift in Sources */,
 				A8305D305F8C4EF9A6DD229E /* AdaptiveView.swift in Sources */,
 				BCF5C9BE9BCEF813759C566E /* SettingsView.swift in Sources */,
+				F4934CEE92B86BD1B50B30FE /* RainNotificationCore.swift in Sources */,
+				3FB94C84FF4946EC77595D10 /* RainNotifications.swift in Sources */,
+				B07B8C88A774E3F4B2325207 /* WeatherHistory.swift in Sources */,
+				C2C4E8D1566669E350EAAC77 /* PersonalStation.swift in Sources */,
 				60BD61EC1E348691957734F4 /* TrendViews.swift in Sources */,
 				ED9C1A5B1CE4948AA4619099 /* AlertsView.swift in Sources */,
 				86792F23F779C508437FBD24 /* RadarCore.swift in Sources */,
@@ -301,7 +317,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = KlierSky/Info.plist;
@@ -314,7 +330,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.4.0;
+				MARKETING_VERSION = 0.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.klier.KlierSky;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -329,7 +345,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = KlierSkyWidgets/Info.plist;
@@ -340,7 +356,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.4.0;
+				MARKETING_VERSION = 0.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.klier.KlierSky.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -356,7 +372,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = KlierSky/Info.plist;
@@ -369,7 +385,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.4.0;
+				MARKETING_VERSION = 0.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.klier.KlierSky;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -392,7 +408,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = KlierSkyWidgets/Info.plist;
@@ -403,7 +419,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.4.0;
+				MARKETING_VERSION = 0.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.klier.KlierSky.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;

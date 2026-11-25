@@ -1,6 +1,62 @@
 import SwiftUI
 
 struct SettingsView: View {
+    let model: WeatherModel
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage("appearance") private var appearance = "system"
+    @AppStorage("celsius") private var celsius = false
+    @AppStorage("rainInches") private var rainInches = false
+    @AppStorage("clock24") private var clock24 = false
+    @AppStorage("locationMode") private var locationMode = "current"
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Appearance & units") {
+                    Picker("Appearance", selection: $appearance) {
+                        Text("System").tag("system")
+                        Text("Light").tag("light")
+                        Text("Dark").tag("dark")
+                    }
+                    Picker("Temperature & wind", selection: $celsius) {
+                        Text("°F · mph").tag(false)
+                        Text("°C · km/h").tag(true)
+                    }
+                    Picker("Rain", selection: $rainInches) {
+                        Text("Millimeters").tag(false)
+                        Text("Inches").tag(true)
+                    }
+                    Toggle("24-hour clock", isOn: $clock24)
+                }
+                Section("Locations") {
+                    Picker("When KlierSky opens", selection: $locationMode) {
+                        Text("Current location").tag("current")
+                        Text("Last chosen city").tag("fixed")
+                    }.onChange(of: locationMode) { if locationMode == "current" { model.useLocation() } }
+                    NavigationLink("Saved locations map") {
+                        SavedLocationsMap(usingCurrent: model.usingCurrentLocation, useCurrent: { model.useLocation() }) {
+                            model.select($0)
+                        }
+                    }
+                }
+                Section {
+                    NavigationLink("Notifications") { NotificationSettingsView(model: model) }
+                    NavigationLink("My weather station") { StationSettingsView() }
+                    NavigationLink("Administration") { AdvancedSettingsView(model: model) }
+                } footer: {
+                    Text("Administration contains forecast sources, screen options, diagnostics and server settings.")
+                }
+                Section {
+                    Text("Add KlierSky widgets from your Home Screen or Lock Screen. Touch and hold a widget to choose its location.").font(.footnote)
+                } header: { Text("Widgets") }
+            }
+            .navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
+    }
+}
+
+
+struct AdvancedSettingsView: View {
     @Bindable var model: WeatherModel
     @Environment(\.dismiss) private var dismiss
     @AppStorage("celsius") private var celsius = false
@@ -24,21 +80,7 @@ struct SettingsView: View {
     private var version: String { "\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"))" }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Appearance & units") {
-                    Picker("Appearance", selection: $appearance) { Text("System").tag("system"); Text("Light").tag("light"); Text("Dark").tag("dark") }
-                    Picker("Units", selection: $celsius) { Text("°F, mph, inHg, mi").tag(false); Text("°C, km/h, hPa, km").tag(true) }
-                    Picker("Precipitation", selection: $rainInches) { Text("Millimeters").tag(false); Text("Inches").tag(true) }
-                    Toggle("24-hour clock", isOn: $clock24)
-                }
-                Section("Location") {
-                    LabeledContent("Showing", value: model.hasSelectedLocation ? model.place.name : "Not set")
-                    Picker("When the app opens", selection: $locationMode) { Text("Current location").tag("current"); Text("Last chosen city").tag("fixed") }
-                        .onChange(of: locationMode) { if locationMode == "current" { model.useLocation() } }
-                    if model.hasSelectedLocation { Button(FavoriteLocations.shared.contains(model.place) ? "Remove from favorites" : "Add to favorites") { FavoriteLocations.shared.toggle(model.place) } }
-                    if let message = model.locationService.message { Text(message).font(.footnote).foregroundStyle(Sky.caution) }
-                }
+        Form {
                 Section {
                     LabeledContent("Foreca service", value: access.title)
                     Text(access.detail).font(.footnote).foregroundStyle(.secondary)
@@ -73,12 +115,12 @@ struct SettingsView: View {
                 Section {
                     Text("Add KlierSky from the Home Screen or Lock Screen widget gallery, then edit the widget to use your location or a city.").font(.footnote)
                 } header: { Text("Widgets") } footer: {
-                    Text("Widgets fetch Open-Meteo by themselves and say so. iOS decides how often they update, so check the time shown on the widget.")
+                    Text("Widgets fetch free forecast sources independently. iOS decides how often they update, so check the time shown on the widget.")
                 }
                 Section("More") {
                     NavigationLink("Adaptive weather") { AccuracyPanel(model: model) }
                     NavigationLink("Weather Lab · diagnostics") { WeatherLabView(model: model) }
-                    NavigationLink("Owner administration") { OwnerAdminView(model: model) }
+                    NavigationLink("Server & family access") { OwnerAdminView(model: model) }
                 }
                 Section {
                     LabeledContent("Version", value: version)
@@ -91,9 +133,7 @@ struct SettingsView: View {
                     Text("Personal testing build. Forecasts are model estimates. Official alerts are listed in the app but are not pushed to you.")
                 }
             }
-            .navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-        }
+            .navigationTitle("Administration").navigationBarTitleDisplayMode(.inline)
     }
     private func check(again: Bool) {
         checking = true

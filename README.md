@@ -32,7 +32,7 @@ Instead of trusting one service, KlierSky can average all of them: Foreca when c
 - **No accuracy gain is claimed.** Averaging often softens big misses, but that has not been measured here. One-source mode remains a setting.
 - **Free first.** Every source above needs no paid key. [Terms and limits →](Docs/PROVIDERS.md)
 
-*Development branch: tested against recorded and live responses, built in Xcode, and launched in the iPhone simulator.*
+*The iOS 0.5.0 beta builds in Xcode and is available through the existing SideStore feed. Six Swift check groups and 46 gateway tests pass.*
 
 ## A look inside
 
@@ -158,3 +158,8 @@ Found a bug or have a useful idea? [Open an issue](https://github.com/gklier/Kli
 ---
 
 <div align="center"><sub>Built by gklier · Early beta · Original design and implementation</sub></div>
+
+
+## Android preview
+
+A native Android alpha now provides current, hourly and daily forecasts, UV and humidity readings, city search, current location, favorites, saved-location map selection, themes and observed radar. It connects to the same server-held Foreca account through owner-approved device access. The iOS blend, model futurecast, history, station setup, notifications and widgets still need Android ports. See [Android build instructions and validation](Android/README.md).

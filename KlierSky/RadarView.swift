@@ -83,9 +83,9 @@ import MapLibre
     }
     func stop() { ticker?.cancel(); ticker = nil; metrics.save() }
     private func tick() {
-        let before = (buffer.displayed, buffer.states)
+        let before = (buffer.displayed, buffer.states, buffer.target)
         buffer.tick()
-        if before.0 != buffer.displayed || before.1 != buffer.states { apply?(); record() }
+        if before.0 != buffer.displayed || before.1 != buffer.states || before.2 != buffer.target { apply?(); record() }
     }
     private func record() {
         var s = metrics.snapshot
@@ -93,7 +93,7 @@ import MapLibre
         s.loadSeconds = buffer.loadSeconds.values.sorted()
         if s.firstFrameSeconds == nil, buffer.readyCount >= 1 { s.firstFrameSeconds = Date().timeIntervalSince(opened) }
         if s.allFramesSeconds == nil, buffer.readyCount == min(buffer.count, buffer.config.maxResident), buffer.count > 0 { s.allFramesSeconds = Date().timeIntervalSince(opened) }
-        metrics.snapshot = s; metrics.save()
+        metrics.snapshot = s
     }
 }
 
@@ -188,7 +188,7 @@ struct RadarMap: UIViewRepresentable {
                     // Hidden layers fetch nothing. The buffer decides which frames may load.
                     layer.isVisible = false
                     layer.rasterFadeDuration = NSExpression(forConstantValue: 0)
-                    layer.rasterOpacityTransition = MLNTransition(duration: parent.reduceMotion ? 0 : 0.12, delay: 0)
+                    layer.rasterOpacityTransition = MLNTransition(duration: 0, delay: 0)
                     if let labels { style.insertLayer(layer, below: labels) } else { style.addLayer(layer) }
                 }
             }
