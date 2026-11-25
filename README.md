@@ -162,15 +162,35 @@ Found a bug or have a useful idea? [Open an issue](https://github.com/gklier/Kli
 
 ## Android preview
 
-A native Android alpha now provides current, hourly and daily forecasts, UV and humidity readings, city search, current location, favorites, saved-location map selection, themes and observed radar. It connects to the same server-held Foreca account through owner-approved device access. The iOS blend, model futurecast, history, station setup, notifications and widgets still need Android ports. See [Android build instructions and validation](Android/README.md).
-
-
-Android 0.1.3 includes compact controls, original weather symbols, a colored 12-hour outlook, high-contrast themes and settings aligned with the iPhone form and anchored menus. [Download the Android APK or AAB](https://github.com/gklier/KlierSky/releases/tag/android-v0.1.3-alpha).
+**Android 0.1.3 alpha brings the compact KlierSky forecast and iPhone-style settings to Android.** Current conditions lead into a native MapLibre map, a colored 12-hour rain/wind outlook, six hourly rows expandable to 24, daily temperature ranges and current details. City search, current location, persistent favorites, a saved-locations map, and UV/humidity forecasts are included.
 
 <p align="center">
-<img src="Android/Screenshots/design-checks/forecast-light.png" width="30%" alt="Native Android light forecast" />
-<img src="Android/Screenshots/design-checks/forecast-dark-temperature.png" width="30%" alt="Native Android dark forecast" />
-<img src="Android/Screenshots/design-checks/forecast-details-dark.png" width="30%" alt="Android daily forecast and current details" />
+<a href="https://github.com/gklier/KlierSky/releases/download/android-v0.1.3-alpha/KlierSky-Android-0.1.3-alpha.apk"><img src="https://img.shields.io/badge/Download_Android_APK-0.1.3_alpha-087b96?style=for-the-badge&amp;logo=android&amp;logoColor=white" alt="Download KlierSky Android 0.1.3 APK"></a>
 </p>
 
-*Live Pixel 7 Android 16 emulator captures, November 25, 2026. Android feature gaps are listed in [the Android notes](Android/README.md).*
+[Download the AAB](https://github.com/gklier/KlierSky/releases/download/android-v0.1.3-alpha/KlierSky-Android-0.1.3-alpha.aab) · [Release notes and checksums](https://github.com/gklier/KlierSky/releases/tag/android-v0.1.3-alpha) · [Android source and build guide](https://github.com/gklier/KlierSky/tree/android-v0.1.3-alpha/Android)
+
+**Use the APK to install or update an Android phone.** Install it over the existing alpha to keep app data. The AAB is a publishing bundle, not a directly installable file. No Google Play release is available yet.
+
+<table>
+<tr><th>Light forecast</th><th>Dark forecast</th><th>Daily details</th></tr>
+<tr>
+<td width="33%"><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.1.3-alpha/Android/Screenshots/design-checks/forecast-light.png" width="300" alt="Live Android light forecast with current conditions, observed radar, outlook and compact hourly rows"></td>
+<td width="33%"><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.1.3-alpha/Android/Screenshots/design-checks/forecast-dark-temperature.png" width="300" alt="Live Android dark forecast with readable weather symbols and map labels"></td>
+<td width="33%"><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.1.3-alpha/Android/Screenshots/design-checks/forecast-details-dark.png" width="300" alt="Android daily temperature ranges and current weather statistics"></td>
+</tr>
+<tr><th>Settings in daylight</th><th>Settings after dark</th><th>Inline choices</th></tr>
+<tr>
+<td><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.1.3-alpha/Android/Screenshots/design-checks/settings-sheet-light.png" width="300" alt="Android settings with centered title, Done button and grouped preferences in light mode"></td>
+<td><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.1.3-alpha/Android/Screenshots/design-checks/settings-sheet-dark.png" width="300" alt="Android settings aligned with the iPhone form in dark mode"></td>
+<td><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.1.3-alpha/Android/Screenshots/design-checks/appearance-sheet-dark.png" width="300" alt="Anchored appearance menu with System, Light and Dark choices"></td>
+</tr>
+</table>
+
+*Actual Pixel 7 Android 16 emulator captures, November 25, 2026. Weather values are snapshots.*
+
+Settings now follows the iPhone form: a tall panel, centered header and Done button, compact grouped rows, blue inline values and anchored selection menus. Light, dark and system appearance, independent rain units, a 24-hour clock, startup location and in-panel Administration navigation work in this build. Android retains its system typography and original artwork.
+
+Foreca works through owner-approved, read-only device access to the existing server. The vendor key stays on the server; Open-Meteo is the labeled fallback. **Android radar is observed-only.** The separate 12-hour point forecast is not futurecast radar. The iOS adaptive blend, model futurecast, history, personal stations, notifications and widgets still need Android ports.
+
+Release builds, lint, signatures and AAB structure were checked. Emulator UI checks cover live forecasts, map rendering, theme changes, forecast expansion, settings menus, units, clock preference and navigation. Physical-device performance, location permission and Foreca enrollment still need testing.

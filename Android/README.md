@@ -6,6 +6,12 @@ Includes current conditions, feels-like temperature, compact hourly and daily fo
 
 The iOS weighted blend, model futurecast, historical comparison, personal-station setup, rain reminders and widgets still need Android ports. This alpha has build, lint, signature and bundle-format checks. The live forecast UI was exercised on a Pixel 7 Android 16 emulator, including city search, light → dark → light changes, humidity selection, six/24-hour expansion and MapLibre rendering. Physical-device radar performance, location permission and live Foreca enrollment still need testing.
 
+## Install the alpha
+
+[Install APK](https://github.com/gklier/KlierSky/releases/download/android-v0.1.3-alpha/KlierSky-Android-0.1.3-alpha.apk) · [Download AAB](https://github.com/gklier/KlierSky/releases/download/android-v0.1.3-alpha/KlierSky-Android-0.1.3-alpha.aab) · [Release notes and checksums](https://github.com/gklier/KlierSky/releases/tag/android-v0.1.3-alpha)
+
+Use the APK on an Android phone. Install over the existing alpha to retain data; the package and signing certificate are unchanged. The AAB is for publishing, not direct installation.
+
 ## Settings aligned with the iPhone app
 
 Version 0.1.3 uses the actual iPhone settings screenshot as its reference. Settings now opens in one tall panel with a centered inline title, Done control, compact grouped rows, matching dark/light surface colors and blue preference values. Appearance, temperature/wind, rain units and startup location open small anchored menus instead of separate bottom sheets. Administration navigates within the same panel, with Back and Done controls.
