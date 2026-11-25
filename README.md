@@ -2,11 +2,12 @@
 
 ![KlierSky — Weather worth looking at](Docs/Images/hero.svg)
 
-**A compact, native iPhone weather app with a little nostalgia and a clearer outlook. Now with an Android alpha.**
+**Compact, native weather for iPhone and Android. A little nostalgia, a clearer outlook.**
 
-SwiftUI · MapLibre Native · WidgetKit · Foreca · Open-Meteo
+SwiftUI for iPhone · Native Android · MapLibre Native · WidgetKit · Foreca · Open-Meteo
 
 [![iOS 17+](https://img.shields.io/badge/iOS-17%2B-087b96?style=flat-square)](#build-it)
+[![Android 8+ alpha](https://img.shields.io/badge/Android-8%2B_alpha-3DDC84?style=flat-square&logo=android&logoColor=white)](#android-preview)
 [![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm_Noncommercial-6e7bd8?style=flat-square)](LICENSE.md)
 [![Status: early beta](https://img.shields.io/badge/status-early_beta-f4bf60?style=flat-square)](#where-things-stand)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_a_Coffee-gklier-FFDD00?style=flat-square&logo=buymeacoffee&logoColor=000)](https://buymeacoffee.com/gklier)
