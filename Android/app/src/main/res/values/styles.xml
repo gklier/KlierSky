@@ -9,4 +9,20 @@
         <item name="android:windowLightStatusBar">false</item><item name="android:statusBarColor">#0A0D11</item>
         <item name="android:navigationBarColor">#0A0D11</item><item name="android:windowActionModeOverlay">true</item>
     </style>
+    <style name="WeatherSheet" parent="android:style/Theme.Material.Light.Dialog.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorAccent">#087695</item>
+        <item name="android:fontFamily">sans</item>
+    </style>
+    <style name="WeatherSheet.Dark" parent="android:style/Theme.Material.Dialog.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorAccent">#79C9F1</item>
+        <item name="android:fontFamily">sans</item>
+    </style>
+    <style name="WeatherSheetAnimation">
+        <item name="android:windowEnterAnimation">@anim/sheet_enter</item>
+        <item name="android:windowExitAnimation">@anim/sheet_exit</item>
+    </style>
 </resources>

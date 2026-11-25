@@ -2,7 +2,6 @@ package com.klier.kliersky;
 
 import android.Manifest;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
@@ -686,11 +685,10 @@ public class MainActivity extends Activity {
                 + "  ·  "
                 + rounded(number(hourly.optJSONArray("relative_humidity_2m"), i), "% humidity"));
       }
-    new AlertDialog.Builder(this)
-        .setTitle("48-hour detail forecast")
-        .setItems(rows.toArray(new String[0]), null)
-        .setPositiveButton("Done", null)
-        .show();
+    WeatherSheet sheet =
+        sheet("48-hour detail forecast", "Hourly UV and humidity · " + result.source());
+    for (String row : rows) sheet.row(row, null, null, false, null);
+    sheet.show();
   }
 
   private void drawMap() {
@@ -926,27 +924,52 @@ public class MainActivity extends Activity {
     return saved;
   }
 
+  private WeatherSheet sheet(String title, String subtitle) {
+    return new WeatherSheet(this, dark, title, subtitle);
+  }
+
   private void locations() {
-    List<WeatherService.Place> saved = favorites();
-    List<String> names = new ArrayList<>();
-    names.add("Use current location");
-    names.add("Search for a city");
-    names.add("Save / remove this location");
-    for (var city : saved) names.add(city.name());
-    new AlertDialog.Builder(this)
-        .setTitle("Locations")
-        .setItems(
-            names.toArray(new String[0]),
-            (dialog, index) -> {
-              if (index == 0) {
-                preferences.edit().putBoolean("useCurrent", true).apply();
-                useCurrent();
-              } else if (index == 1) search();
-              else if (index == 2) saveFavorite();
-              else select(saved.get(index - 3));
+    WeatherSheet sheet = sheet("Locations", "Your weather, wherever you are.");
+    sheet
+        .section("Find a place")
+        .row(
+            "Use current location",
+            "Weather near you",
+            null,
+            false,
+            () -> {
+              preferences.edit().putBoolean("useCurrent", true).apply();
+              useCurrent();
             })
-        .setNegativeButton("Done", null)
-        .show();
+        .row("Search for a city", null, null, false, this::search);
+    boolean saved =
+        favorites().stream()
+            .anyMatch(
+                item ->
+                    item.latitude() == place.latitude() && item.longitude() == place.longitude());
+    sheet
+        .section("This location")
+        .row(
+            saved ? "Remove from favorites" : "Save to favorites",
+            place.name(),
+            null,
+            false,
+            this::saveFavorite);
+    List<WeatherService.Place> favorites = favorites();
+    if (!favorites.isEmpty()) {
+      sheet.section("Saved places");
+      for (var city : favorites) sheet.row(city.name(), null, null, false, () -> select(city));
+      sheet.row(
+          "Saved locations map",
+          "Choose a place on the map",
+          null,
+          false,
+          () -> {
+            savedMap = true;
+            render();
+          });
+    }
+    sheet.show();
   }
 
   private void saveFavorite() {
@@ -966,112 +989,186 @@ public class MainActivity extends Activity {
   }
 
   private void search() {
-    EditText query = new EditText(this);
-    query.setHint("City name");
-    query.setSingleLine(true);
-    new AlertDialog.Builder(this)
-        .setTitle("Find a city")
-        .setView(query)
-        .setPositiveButton(
-            "Search",
-            (dialog, which) -> {
-              String value = query.getText().toString().trim();
-              if (value.length() < 2) return;
-              worker.execute(
-                  () -> {
-                    try {
-                      List<WeatherService.Place> found = WeatherService.search(value);
-                      runOnUiThread(
-                          () -> {
-                            if (isDestroyed()) return;
-                            if (found.isEmpty()) {
-                              Toast.makeText(this, "No matching cities", Toast.LENGTH_LONG).show();
-                              return;
-                            }
-                            String[] names =
-                                found.stream()
-                                    .map(WeatherService.Place::name)
-                                    .toArray(String[]::new);
-                            new AlertDialog.Builder(this)
-                                .setTitle("Search results")
-                                .setItems(names, (choice, index) -> select(found.get(index)))
-                                .show();
-                          });
-                    } catch (Exception ignored) {
-                      runOnUiThread(
-                          () ->
-                              Toast.makeText(this, "City search unavailable", Toast.LENGTH_LONG)
-                                  .show());
-                    }
-                  });
-            })
-        .setNegativeButton("Cancel", null)
+    WeatherSheet searchSheet = sheet("Find a city", "Search by city name to see its forecast.");
+    EditText query = searchSheet.input("City name");
+    Runnable submitSearch =
+        () -> {
+          String value = query.getText().toString().trim();
+          if (value.length() < 2) {
+            query.setError("Enter at least two letters");
+            return;
+          }
+          searchSheet.dismiss();
+          worker.execute(
+              () -> {
+                try {
+                  List<WeatherService.Place> found = WeatherService.search(value);
+                  runOnUiThread(
+                      () -> {
+                        if (isDestroyed()) return;
+                        WeatherSheet results = sheet("Search results", "Choose a location");
+                        if (found.isEmpty())
+                          results
+                              .message("No matching cities. Try another name.")
+                              .primary(
+                                  "Search again",
+                                  () -> {
+                                    results.dismiss();
+                                    search();
+                                  });
+                        else
+                          for (var city : found)
+                            results.row(city.name(), null, null, false, () -> select(city));
+                        results.show();
+                      });
+                } catch (Exception ignored) {
+                  runOnUiThread(
+                      () ->
+                          Toast.makeText(this, "City search unavailable", Toast.LENGTH_LONG)
+                              .show());
+                }
+              });
+        };
+    searchSheet.primary("Search", submitSearch);
+    query.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
+    query.setOnEditorActionListener(
+        (view, action, event) -> {
+          if (action == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+            submitSearch.run();
+            return true;
+          }
+          return false;
+        });
+    searchSheet.show();
+  }
+
+  private String appearanceName() {
+    return new String[] {"System", "Light", "Dark"}[preferences.getInt("appearance", 0)];
+  }
+
+  private void appearance() {
+    WeatherSheet sheet = sheet("Appearance", "Choose how KlierSky looks.");
+    String[] names = {"System", "Light", "Dark"};
+    String[] descriptions = {
+      "Follow your device appearance", "A clear, bright forecast", "Comfortable after dark"
+    };
+    for (int i = 0; i < names.length; i++) {
+      final int choice = i;
+      sheet.choice(
+          names[i],
+          descriptions[i],
+          preferences.getInt("appearance", 0) == i,
+          () -> {
+            preferences.edit().putInt("appearance", choice).apply();
+            render();
+          });
+    }
+    sheet.show();
+  }
+
+  private void units() {
+    WeatherSheet sheet = sheet("Units", "Temperature and wind speed");
+    sheet.choice(
+        "Fahrenheit",
+        "°F · miles per hour",
+        !celsius,
+        () -> {
+          preferences.edit().putBoolean("celsius", false).apply();
+          render();
+        });
+    sheet.choice(
+        "Celsius",
+        "°C · kilometers per hour",
+        celsius,
+        () -> {
+          preferences.edit().putBoolean("celsius", true).apply();
+          render();
+        });
+    sheet.show();
+  }
+
+  private void administration() {
+    sheet("Administration", "Service access and development details")
+        .row(
+            "Foreca service access",
+            "Owner-approved access to your weather server",
+            null,
+            false,
+            this::forecaAccess)
+        .row(
+            "Android alpha feature status",
+            "What is available in this preview",
+            null,
+            false,
+            this::alphaStatus)
+        .show();
+  }
+
+  private void forecaAccess() {
+    WeatherSheet sheet = sheet("Foreca access", "Your provider key stays on the server.");
+    sheet.message(
+        result == null
+            ? "Refresh to request service access. The owner approves your device on their iPhone."
+            : result.accessMessage().isEmpty()
+                ? "Connected to the server-held Foreca account with this device's read-only access."
+                : result.accessMessage());
+    sheet.primary(
+        "Check again",
+        () -> {
+          sheet.dismiss();
+          refresh();
+        });
+    sheet.show();
+  }
+
+  private void alphaStatus() {
+    sheet("Android alpha", "KlierSky " + BuildConfig.VERSION_NAME)
+        .message(
+            "Working core: current conditions, hourly and daily forecasts, unit/theme settings,"
+                + " current location, saved places, city search, Foreca access and observed"
+                + " radar.\n\n"
+                + "The iOS blend, model futurecast, station connection, history, notifications and"
+                + " widgets still need porting.")
         .show();
   }
 
   private void settings() {
-    String[] choices = {
-      "Appearance",
-      celsius ? "Use Fahrenheit & mph" : "Use Celsius & km/h",
-      "Current location on startup",
-      "Foreca service access",
-      "Android alpha feature status",
-      "Refresh weather",
-      "Saved locations map"
-    };
-    new AlertDialog.Builder(this)
-        .setTitle("Settings")
-        .setItems(
-            choices,
-            (dialog, index) -> {
-              if (index == 0)
-                new AlertDialog.Builder(this)
-                    .setTitle("Appearance")
-                    .setSingleChoiceItems(
-                        new String[] {"System", "Light", "Dark"},
-                        preferences.getInt("appearance", 0),
-                        (choice, value) -> {
-                          preferences.edit().putInt("appearance", value).apply();
-                          choice.dismiss();
-                          render();
-                        })
-                    .show();
-              else if (index == 1) {
-                preferences.edit().putBoolean("celsius", !celsius).apply();
-                render();
-              } else if (index == 2) {
-                preferences.edit().putBoolean("useCurrent", true).apply();
-                useCurrent();
-              } else if (index == 3)
-                new AlertDialog.Builder(this)
-                    .setTitle("Foreca access")
-                    .setMessage(
-                        result == null
-                            ? "Refresh to request service access. The owner approves your device on"
-                                + " their iPhone."
-                            : result.accessMessage().isEmpty()
-                                ? "Connected to the server-held Foreca account with this device's"
-                                    + " read-only access."
-                                : result.accessMessage())
-                    .setPositiveButton("Check again", (d, w) -> refresh())
-                    .show();
-              else if (index == 5) refresh();
-              else if (index == 6) {
-                savedMap = true;
-                render();
-              } else
-                new AlertDialog.Builder(this)
-                    .setTitle("Android alpha")
-                    .setMessage(
-                        "Working core: current conditions, hourly and daily forecasts, unit/theme"
-                            + " settings, current location, saved places, city search, Foreca"
-                            + " access and observed radar.\n\n"
-                            + "The iOS blend, model futurecast, station connection, history,"
-                            + " notifications and widgets still need porting.")
-                    .setPositiveButton("Done", null)
-                    .show();
+    WeatherSheet sheet = sheet("Settings", "Make KlierSky feel like yours.");
+    sheet
+        .section("Preferences")
+        .row("Appearance", null, appearanceName(), false, this::appearance)
+        .row("Units", null, celsius ? "°C · km/h" : "°F · mph", false, this::units);
+    sheet
+        .section("Your weather")
+        .row(
+            "Current location on startup",
+            "Use your position when KlierSky opens",
+            preferences.getBoolean("useCurrent", true) ? "On" : "Off",
+            false,
+            () -> {
+              boolean enabled = !preferences.getBoolean("useCurrent", true);
+              preferences.edit().putBoolean("useCurrent", enabled).apply();
+              if (enabled) useCurrent();
             })
-        .show();
+        .row(
+            "Saved locations map",
+            "Choose a place on the map",
+            null,
+            false,
+            () -> {
+              savedMap = true;
+              render();
+            })
+        .row("Refresh weather", null, null, false, this::refresh);
+    sheet
+        .section("Advanced")
+        .row(
+            "Administration",
+            "Service access and app information",
+            null,
+            false,
+            this::administration);
+    sheet.show();
   }
 
   private void useCurrent() {

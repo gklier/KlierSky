@@ -24,6 +24,8 @@ public class DesignChecks {
       UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
 
   private UiObject2 waitFor(BySelector selector) {
+    // Wait for the native window entrance animation before using layout coordinates.
+    SystemClock.sleep(280);
     UiObject2 view = device.wait(Until.findObject(selector), 45000);
     assertNotNull("Expected visible control: " + selector, view);
     return view;
@@ -70,6 +72,7 @@ public class DesignChecks {
                 .getExternalFilesDir(null),
             "design-checks");
     folder.mkdirs();
+    SystemClock.sleep(280);
     assertTrue(device.takeScreenshot(new File(folder, filename)));
   }
 
@@ -83,7 +86,8 @@ public class DesignChecks {
       waitFor(By.text("Search for a city")).click();
       waitFor(By.clazz("android.widget.EditText")).setText("Seattle");
       waitFor(By.text(java.util.regex.Pattern.compile("(?i)search"))).click();
-      waitFor(By.res("android:id/text1").textStartsWith("Seattle,")).click();
+      waitFor(By.textStartsWith("Seattle,").hasAncestor(By.clazz("android.widget.ScrollView")))
+          .click();
       waitFor(By.text("Hourly"));
       appearance("Light");
       waitForMap(scenario);
@@ -120,6 +124,58 @@ public class DesignChecks {
       appearance("Light");
       waitForMap(scenario);
       capture("forecast-switched-light.png");
+    }
+  }
+
+  @Test
+  public void roundedSheetsPreferencesAndAdministration() {
+    try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+      appearance("Light");
+      waitFor(By.desc("Settings")).click();
+      waitFor(By.text("Administration"));
+      device.waitForIdle();
+      capture("settings-sheet-light.png");
+      waitFor(By.text("Appearance")).click();
+      device.waitForIdle();
+      capture("appearance-sheet-light.png");
+      waitFor(By.text("Light")).click();
+      waitFor(By.desc("Settings")).click();
+      waitFor(By.text("Units")).click();
+      device.waitForIdle();
+      capture("units-sheet-light.png");
+      waitFor(By.text("Celsius")).click();
+      var context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+      assertTrue(context.getSharedPreferences("weather", 0).getBoolean("celsius", false));
+      waitFor(By.desc("Settings")).click();
+      waitFor(By.text("Administration")).click();
+      waitFor(By.text("Foreca service access"));
+      device.waitForIdle();
+      capture("administration-sheet-light.png");
+      waitFor(By.text("Foreca service access")).click();
+      waitFor(By.text("Your provider key stays on the server."));
+      waitFor(By.desc("Close Foreca access")).click();
+      appearance("Dark");
+      waitFor(By.desc("Settings")).click();
+      waitFor(By.text("Administration"));
+      device.waitForIdle();
+      capture("settings-sheet-dark.png");
+      waitFor(By.text("Appearance")).click();
+      device.waitForIdle();
+      capture("appearance-sheet-dark.png");
+      waitFor(By.text("Light")).click();
+      waitFor(By.desc("Settings")).click();
+      waitFor(By.text("Units")).click();
+      waitFor(By.text("Fahrenheit")).click();
+      assertFalse(context.getSharedPreferences("weather", 0).getBoolean("celsius", true));
+      waitFor(By.desc("Settings")).click();
+      waitFor(By.text("Administration")).click();
+      waitFor(By.text("Foreca service access"));
+      device.pressBack();
+      assertTrue(device.wait(Until.gone(By.desc("Close Administration")), 3000));
+      waitFor(By.desc("Settings")).click();
+      waitFor(By.text("Appearance"));
+      device.click(5, 200);
+      assertTrue(device.wait(Until.gone(By.desc("Close Settings")), 3000));
     }
   }
 }
