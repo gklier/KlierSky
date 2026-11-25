@@ -81,6 +81,11 @@ public class MainActivity extends Activity {
     MapLibre.getInstance(this);
     preferences = getSharedPreferences("weather", MODE_PRIVATE);
     service = new WeatherService(this);
+    if (!preferences.contains("rainInches"))
+      preferences
+          .edit()
+          .putBoolean("rainInches", !preferences.getBoolean("celsius", false))
+          .apply();
     place = new WeatherService.Place("Milwaukee", 43.0389, -87.9065);
     String saved = preferences.getString("selectedPlace", "");
     if (!saved.isEmpty())
@@ -317,7 +322,8 @@ public class MainActivity extends Activity {
   }
 
   private String clock(long seconds) {
-    return DateTimeFormatter.ofPattern("h:mm a")
+    return DateTimeFormatter.ofPattern(
+            preferences.getBoolean("clock24", false) ? "HH:mm" : "h:mm a")
         .withZone(result == null ? ZoneId.systemDefault() : zone())
         .format(Instant.ofEpochSecond(seconds));
   }
@@ -439,6 +445,7 @@ public class MainActivity extends Activity {
 
   private void drawOutlook(JSONObject hourly) {
     List<Integer> indices = hourIndices(hourly, 12);
+    boolean rainInches = preferences.getBoolean("rainInches", !celsius);
     if (indices.isEmpty()) return;
     JSONArray rain = hourly.optJSONArray("precipitation"),
         chances = hourly.optJSONArray("precipitation_probability"),
@@ -467,13 +474,13 @@ public class MainActivity extends Activity {
     for (int j = 0; j < indices.size(); j++) {
       int i = indices.get(j);
       double value = number(wet ? rain : hourly.optJSONArray("wind_speed_10m"), i);
-      values[j] = wet ? (celsius ? value : value / 25.4) : (celsius ? value * 1.609344 : value);
+      values[j] = wet ? (rainInches ? value / 25.4 : value) : (celsius ? value * 1.609344 : value);
       if (Double.isFinite(values[j])) {
         max = Math.max(max, values[j]);
         available++;
       }
       labels[j] =
-          DateTimeFormatter.ofPattern("ha")
+          DateTimeFormatter.ofPattern(preferences.getBoolean("clock24", false) ? "HH:mm" : "ha")
               .withZone(zone())
               .format(Instant.ofEpochSecond(times.optLong(i)))
               .toLowerCase(java.util.Locale.ROOT);
@@ -482,7 +489,7 @@ public class MainActivity extends Activity {
     TextView span = text("Next 12 hours · " + (wet ? "Precipitation" : "Wind"), 11, false);
     span.setTextColor(accent);
     caption.addView(span, new LinearLayout.LayoutParams(0, -2, 1));
-    String unit = wet ? (celsius ? "mm" : "in") : (celsius ? "km/h" : "mph");
+    String unit = wet ? (rainInches ? "in" : "mm") : (celsius ? "km/h" : "mph");
     TextView peak =
         text(
             available == 0
@@ -503,7 +510,7 @@ public class MainActivity extends Activity {
             muted,
             wet ? Color.rgb(55, 145, 205) : Color.rgb(69, 151, 141),
             hairline(),
-            Math.max(wet ? (celsius ? 1 : 0.04) : 5, max * 1.15));
+            Math.max(wet ? (rainInches ? 0.04 : 1) : 5, max * 1.15));
     chart.setContentDescription(headline + ". Hourly forecast. " + result.source());
     content.addView(chart, new LinearLayout.LayoutParams(-1, dp(96)));
   }
@@ -560,7 +567,13 @@ public class MainActivity extends Activity {
     for (int i : indices) {
       LinearLayout line = new LinearLayout(this);
       line.setGravity(Gravity.CENTER_VERTICAL);
-      TextView time = text(clock(times.optLong(i)).replace(":00", ""), 12, true);
+      TextView time =
+          text(
+              preferences.getBoolean("clock24", false)
+                  ? clock(times.optLong(i))
+                  : clock(times.optLong(i)).replace(":00", ""),
+              12,
+              true);
       time.setGravity(Gravity.CENTER_VERTICAL);
       line.addView(time, new LinearLayout.LayoutParams(dp(64), dp(32)));
       int weather =
@@ -1042,133 +1055,26 @@ public class MainActivity extends Activity {
     searchSheet.show();
   }
 
-  private String appearanceName() {
-    return new String[] {"System", "Light", "Dark"}[preferences.getInt("appearance", 0)];
-  }
-
-  private void appearance() {
-    WeatherSheet sheet = sheet("Appearance", "Choose how KlierSky looks.");
-    String[] names = {"System", "Light", "Dark"};
-    String[] descriptions = {
-      "Follow your device appearance", "A clear, bright forecast", "Comfortable after dark"
-    };
-    for (int i = 0; i < names.length; i++) {
-      final int choice = i;
-      sheet.choice(
-          names[i],
-          descriptions[i],
-          preferences.getInt("appearance", 0) == i,
-          () -> {
-            preferences.edit().putInt("appearance", choice).apply();
-            render();
-          });
-    }
-    sheet.show();
-  }
-
-  private void units() {
-    WeatherSheet sheet = sheet("Units", "Temperature and wind speed");
-    sheet.choice(
-        "Fahrenheit",
-        "°F · miles per hour",
-        !celsius,
-        () -> {
-          preferences.edit().putBoolean("celsius", false).apply();
-          render();
-        });
-    sheet.choice(
-        "Celsius",
-        "°C · kilometers per hour",
-        celsius,
-        () -> {
-          preferences.edit().putBoolean("celsius", true).apply();
-          render();
-        });
-    sheet.show();
-  }
-
-  private void administration() {
-    sheet("Administration", "Service access and development details")
-        .row(
-            "Foreca service access",
-            "Owner-approved access to your weather server",
-            null,
-            false,
-            this::forecaAccess)
-        .row(
-            "Android alpha feature status",
-            "What is available in this preview",
-            null,
-            false,
-            this::alphaStatus)
-        .show();
-  }
-
-  private void forecaAccess() {
-    WeatherSheet sheet = sheet("Foreca access", "Your provider key stays on the server.");
-    sheet.message(
-        result == null
-            ? "Refresh to request service access. The owner approves your device on their iPhone."
-            : result.accessMessage().isEmpty()
-                ? "Connected to the server-held Foreca account with this device's read-only access."
-                : result.accessMessage());
-    sheet.primary(
-        "Check again",
-        () -> {
-          sheet.dismiss();
-          refresh();
-        });
-    sheet.show();
-  }
-
-  private void alphaStatus() {
-    sheet("Android alpha", "KlierSky " + BuildConfig.VERSION_NAME)
-        .message(
-            "Working core: current conditions, hourly and daily forecasts, unit/theme settings,"
-                + " current location, saved places, city search, Foreca access and observed"
-                + " radar.\n\n"
-                + "The iOS blend, model futurecast, station connection, history, notifications and"
-                + " widgets still need porting.")
-        .show();
-  }
-
   private void settings() {
-    WeatherSheet sheet = sheet("Settings", "Make KlierSky feel like yours.");
-    sheet
-        .section("Preferences")
-        .row("Appearance", null, appearanceName(), false, this::appearance)
-        .row("Units", null, celsius ? "°C · km/h" : "°F · mph", false, this::units);
-    sheet
-        .section("Your weather")
-        .row(
-            "Current location on startup",
-            "Use your position when KlierSky opens",
-            preferences.getBoolean("useCurrent", true) ? "On" : "Off",
-            false,
-            () -> {
-              boolean enabled = !preferences.getBoolean("useCurrent", true);
-              preferences.edit().putBoolean("useCurrent", enabled).apply();
-              if (enabled) useCurrent();
-            })
-        .row(
-            "Saved locations map",
-            "Choose a place on the map",
-            null,
-            false,
+    new SettingsPanel(
+            this,
+            preferences,
+            this::render,
+            this::useCurrent,
             () -> {
               savedMap = true;
               render();
-            })
-        .row("Refresh weather", null, null, false, this::refresh);
-    sheet
-        .section("Advanced")
-        .row(
-            "Administration",
-            "Service access and app information",
-            null,
-            false,
-            this::administration);
-    sheet.show();
+            },
+            this::refresh,
+            () ->
+                result == null
+                    ? "Refresh to request service access. The owner approves your device on their"
+                          + " iPhone."
+                    : result.accessMessage().isEmpty()
+                        ? "Connected to the server-held Foreca account with this device's read-only"
+                              + " access."
+                        : result.accessMessage())
+        .show();
   }
 
   private void useCurrent() {

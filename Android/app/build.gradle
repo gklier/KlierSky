@@ -7,8 +7,8 @@ android {
         minSdk 26
         targetSdk 36
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
-        versionCode 3
-        versionName '0.1.2-alpha'
+        versionCode 4
+        versionName '0.1.3-alpha'
         buildConfigField 'String', 'GATEWAY_URL', '"https://weather.klierapps.tech"'
     }
     signingConfigs {

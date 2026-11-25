@@ -34,7 +34,8 @@ public class DesignChecks {
   private void appearance(String value) {
     waitFor(By.desc("Settings")).click();
     waitFor(By.text("Appearance")).click();
-    waitFor(By.text(value)).click();
+    waitFor(By.desc(value)).click();
+    waitFor(By.desc("Done")).click();
     waitFor(By.desc("Settings"));
   }
 
@@ -128,54 +129,60 @@ public class DesignChecks {
   }
 
   @Test
-  public void roundedSheetsPreferencesAndAdministration() {
+  public void iphoneStyleSettingsAndAnchoredMenus() {
     try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
       appearance("Light");
+      var context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+      var prefs = context.getSharedPreferences("weather", 0);
       waitFor(By.desc("Settings")).click();
-      waitFor(By.text("Administration"));
-      device.waitForIdle();
+      waitFor(By.text("Appearance & units"));
       capture("settings-sheet-light.png");
       waitFor(By.text("Appearance")).click();
-      device.waitForIdle();
+      waitFor(By.desc("Dark"));
       capture("appearance-sheet-light.png");
-      waitFor(By.text("Light")).click();
-      waitFor(By.desc("Settings")).click();
-      waitFor(By.text("Units")).click();
-      device.waitForIdle();
-      capture("units-sheet-light.png");
-      waitFor(By.text("Celsius")).click();
-      var context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-      assertTrue(context.getSharedPreferences("weather", 0).getBoolean("celsius", false));
-      waitFor(By.desc("Settings")).click();
-      waitFor(By.text("Administration")).click();
-      waitFor(By.text("Foreca service access"));
-      device.waitForIdle();
-      capture("administration-sheet-light.png");
-      waitFor(By.text("Foreca service access")).click();
-      waitFor(By.text("Your provider key stays on the server."));
-      waitFor(By.desc("Close Foreca access")).click();
-      appearance("Dark");
-      waitFor(By.desc("Settings")).click();
-      waitFor(By.text("Administration"));
-      device.waitForIdle();
+      waitFor(By.desc("Dark")).click();
+      assertEquals(2, prefs.getInt("appearance", 0));
+      waitFor(By.desc("Done"));
       capture("settings-sheet-dark.png");
       waitFor(By.text("Appearance")).click();
-      device.waitForIdle();
+      waitFor(By.desc("Light"));
       capture("appearance-sheet-dark.png");
-      waitFor(By.text("Light")).click();
-      waitFor(By.desc("Settings")).click();
-      waitFor(By.text("Units")).click();
-      waitFor(By.text("Fahrenheit")).click();
-      assertFalse(context.getSharedPreferences("weather", 0).getBoolean("celsius", true));
-      waitFor(By.desc("Settings")).click();
+      waitFor(By.desc("Light")).click();
+      assertEquals(1, prefs.getInt("appearance", 0));
+      waitFor(By.text("Temperature & wind")).click();
+      waitFor(By.desc("°C · km/h"));
+      capture("units-sheet-light.png");
+      waitFor(By.desc("°C · km/h")).click();
+      assertTrue(prefs.getBoolean("celsius", false));
+      waitFor(By.text("Rain")).click();
+      waitFor(By.desc("Inches")).click();
+      assertTrue(prefs.getBoolean("rainInches", false));
+      waitFor(By.text("Temperature & wind")).click();
+      waitFor(By.desc("°F · mph")).click();
+      assertFalse(prefs.getBoolean("celsius", true));
+      // Rain units are independent of the temperature setting.
+      assertTrue(prefs.getBoolean("rainInches", false));
+      boolean oldClock = prefs.getBoolean("clock24", false);
+      waitFor(By.desc("24-hour clock")).click();
+      assertEquals(!oldClock, prefs.getBoolean("clock24", false));
+      waitFor(By.desc("24-hour clock")).click();
+      waitFor(By.text("When KlierSky opens")).click();
+      waitFor(By.desc("Last chosen city")).click();
+      assertFalse(prefs.getBoolean("useCurrent", true));
       waitFor(By.text("Administration")).click();
       waitFor(By.text("Foreca service access"));
+      capture("administration-sheet-light.png");
+      waitFor(By.text("Foreca service access")).click();
+      waitFor(By.textStartsWith("Your provider key stays on the server."));
+      waitFor(By.desc("Back")).click();
+      waitFor(By.text("Foreca service access"));
       device.pressBack();
-      assertTrue(device.wait(Until.gone(By.desc("Close Administration")), 3000));
+      waitFor(By.text("Appearance & units"));
+      waitFor(By.desc("Done")).click();
       waitFor(By.desc("Settings")).click();
-      waitFor(By.text("Appearance"));
-      device.click(5, 200);
-      assertTrue(device.wait(Until.gone(By.desc("Close Settings")), 3000));
+      waitFor(By.text("Appearance & units"));
+      device.pressBack();
+      assertTrue(device.wait(Until.gone(By.desc("Done")), 3000));
     }
   }
 }

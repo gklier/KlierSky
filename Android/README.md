@@ -1,22 +1,24 @@
 # KlierSky Android alpha
 
-A native Android preview with system typography and the KlierSky name, built from the same provider contracts as the iPhone app. The application ID is `com.klier.kliersky`, version `0.1.2-alpha`.
+A native Android preview with system typography and the KlierSky name, built from the same provider contracts as the iPhone app. The application ID is `com.klier.kliersky`, version `0.1.3-alpha`.
 
 Includes current conditions, feels-like temperature, compact hourly and daily forecasts, UV/humidity forecast readings, current-location permission with a saved-city fallback, city search, persistent favorites, saved-place map selection, light/dark/system appearance, units, and a MapLibre observed-radar timeline. Foreca is used through the existing HTTPS gateway when this device has owner-approved read-only access. The Foreca credential stays on the server. The encrypted device credential is backed by Android Keystore. Open-Meteo supplies the labeled fallback.
 
 The iOS weighted blend, model futurecast, historical comparison, personal-station setup, rain reminders and widgets still need Android ports. This alpha has build, lint, signature and bundle-format checks. The live forecast UI was exercised on a Pixel 7 Android 16 emulator, including city search, light → dark → light changes, humidity selection, six/24-hour expansion and MapLibre rendering. Physical-device radar performance, location permission and live Foreca enrollment still need testing.
 
-## Rounded preference sheets
+## Settings aligned with the iPhone app
 
-Version 0.1.2 keeps the main forecast layout and modernizes settings, appearance, units, location search, service access and forecast-detail dialogs with one native rounded-sheet component. Grouped rows, 44 dp close controls, selection checkmarks, inset surfaces and gentle transitions follow the iPhone design direction. Foreca access and development details live under Administration. Sheets support Android Back, outside-tap dismissal and scrollable content; the city field supports the keyboard Search action. Background blur is used only when Android reports it is enabled, with an opaque fallback for readability.
+Version 0.1.3 uses the actual iPhone settings screenshot as its reference. Settings now opens in one tall panel with a centered inline title, Done control, compact grouped rows, matching dark/light surface colors and blue preference values. Appearance, temperature/wind, rain units and startup location open small anchored menus instead of separate bottom sheets. Administration navigates within the same panel, with Back and Done controls.
+
+Rain units are independent of temperature/wind units; the new 24-hour clock control changes forecast, chart and radar time formatting. Preferences persist, and existing rain-unit behavior is preserved on upgrade. Android system typography is retained; no Apple fonts or assets are bundled. Unsupported iOS-only features remain excluded from the normal settings form.
 
 <p align="center">
-  <img src="Screenshots/design-checks/settings-sheet-light.png" width="30%" alt="Rounded Android settings sheet in light mode" />
-  <img src="Screenshots/design-checks/appearance-sheet-dark.png" width="30%" alt="Rounded Android appearance chooser in dark mode" />
-  <img src="Screenshots/design-checks/units-sheet-light.png" width="30%" alt="Android units selection sheet" />
+  <img src="Screenshots/design-checks/settings-sheet-light.png" width="30%" alt="iPhone-style Android settings form in light mode" />
+  <img src="Screenshots/design-checks/settings-sheet-dark.png" width="30%" alt="iPhone-style Android settings form in dark mode" />
+  <img src="Screenshots/design-checks/appearance-sheet-dark.png" width="30%" alt="Anchored Android appearance selection menu" />
 </p>
 
-The emulator UI checks also exercise settings → appearance, units changes and Administration → Foreca access. Close controls and system Back dismiss the sheets.
+Emulator UI checks cover theme changes while keeping Settings open, anchored choices, independent rain units, clock mode, startup location and Administration navigation. Locations and forecast details continue to use the rounded sheets added in 0.1.2.
 
 ## Design update
 
