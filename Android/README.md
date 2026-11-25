@@ -1,10 +1,22 @@
 # KlierSky Android alpha
 
-A native Android preview with system typography and the KlierSky name, built from the same provider contracts as the iPhone app. The application ID is `com.klier.kliersky`, version `0.1.0-alpha`.
+A native Android preview with system typography and the KlierSky name, built from the same provider contracts as the iPhone app. The application ID is `com.klier.kliersky`, version `0.1.1-alpha`.
 
 Includes current conditions, feels-like temperature, compact hourly and daily forecasts, UV/humidity forecast readings, current-location permission with a saved-city fallback, city search, persistent favorites, saved-place map selection, light/dark/system appearance, units, and a MapLibre observed-radar timeline. Foreca is used through the existing HTTPS gateway when this device has owner-approved read-only access. The Foreca credential stays on the server. The encrypted device credential is backed by Android Keystore. Open-Meteo supplies the labeled fallback.
 
-The iOS weighted blend, model futurecast, historical comparison, personal-station setup, rain reminders and widgets still need Android ports. This alpha has build, lint, signature and bundle-format checks. Physical Android rendering, gestures, location permission and live service enrollment need on-device testing.
+The iOS weighted blend, model futurecast, historical comparison, personal-station setup, rain reminders and widgets still need Android ports. This alpha has build, lint, signature and bundle-format checks. The live forecast UI was exercised on a Pixel 7 Android 16 emulator, including city search, light → dark → light changes, humidity selection, six/24-hour expansion and MapLibre rendering. Physical-device radar performance, location permission and live Foreca enrollment still need testing.
+
+## Design update
+
+Version 0.1.1 replaces the first alpha's oversized controls with a compact current/map/outlook/hourly/daily hierarchy, native system typography, original weather symbols, colored rain/wind charts, temperature ranges and readable light/dark themes. Hourly metrics update without rebuilding the map. Radar retains a clear observed timestamp and past-only timeline; the separate 12-hour chart is a forecast.
+
+These are live Android emulator captures, not mockups:
+
+<p align="center">
+  <img src="Screenshots/design-checks/forecast-light.png" width="30%" alt="KlierSky Android light forecast" />
+  <img src="Screenshots/design-checks/forecast-dark-temperature.png" width="30%" alt="KlierSky Android dark forecast" />
+  <img src="Screenshots/design-checks/forecast-details-dark.png" width="30%" alt="KlierSky Android daily forecast and conditions" />
+</p>
 
 ## Build
 

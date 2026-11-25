@@ -163,3 +163,14 @@ Found a bug or have a useful idea? [Open an issue](https://github.com/gklier/Kli
 ## Android preview
 
 A native Android alpha now provides current, hourly and daily forecasts, UV and humidity readings, city search, current location, favorites, saved-location map selection, themes and observed radar. It connects to the same server-held Foreca account through owner-approved device access. The iOS blend, model futurecast, history, station setup, notifications and widgets still need Android ports. See [Android build instructions and validation](Android/README.md).
+
+
+Android 0.1.1 refines that preview with compact controls, original weather symbols, a colored 12-hour outlook and high-contrast themes. [Download the Android APK or AAB](https://github.com/gklier/KlierSky/releases/tag/android-v0.1.1-alpha).
+
+<p align="center">
+<img src="Android/Screenshots/design-checks/forecast-light.png" width="30%" alt="Native Android light forecast" />
+<img src="Android/Screenshots/design-checks/forecast-dark-temperature.png" width="30%" alt="Native Android dark forecast" />
+<img src="Android/Screenshots/design-checks/forecast-details-dark.png" width="30%" alt="Android daily forecast and current details" />
+</p>
+
+*Live Pixel 7 Android 16 emulator captures, November 25, 2026. Android feature gaps are listed in [the Android notes](Android/README.md).*

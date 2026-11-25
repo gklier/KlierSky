@@ -123,3 +123,5 @@ Rain notifications are opt-in local notifications based on the selected location
 
 ## Android preview
 Owner requests an AAB on GitHub. The native Android alpha uses the existing server-held Foreca account with per-device approval and includes explicit feature/validation status in Android/README.md.
+
+Android design follow-up (November 25): replace the initial alpha’s oversized controls and sparse layout with compact current/map/12-hour outlook/hourly/daily/current-statistics hierarchy. Use original weather symbols, system typography, readable map labels, colored rain/wind charts and temperature ranges. Validate actual Android emulator screenshots and light/dark/light switching before publishing the replacement; retain explicit Android feature-gap notes.
