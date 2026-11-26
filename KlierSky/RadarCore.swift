@@ -101,6 +101,7 @@ struct RadarBuffer {
     private(set) var lastActivity: [Date?]
     private(set) var displayed: Int?
     private(set) var target: Int
+    private(set) var direction = 1
     private var targetSince: Date
     /// Seconds each frame took from first warm-up to ready, for the measured report.
     private(set) var loadSeconds: [Int: TimeInterval] = [:]
@@ -118,6 +119,7 @@ struct RadarBuffer {
 
     mutating func setTarget(_ frame: Int, now: Date = Date()) {
         guard states.indices.contains(frame), frame != target else { return }
+        direction = frame > target ? 1 : -1
         target = frame; targetSince = now
     }
     /// The view moved or the map style reloaded: every frame needs its tiles for the new view.
@@ -144,11 +146,20 @@ struct RadarBuffer {
     /// Frames that should be resident, nearest playback order first.
     var residents: [Int] {
         guard count > 0 else { return [] }
-        if count <= config.maxResident { return (0..<count).map { (target + $0) % count } }
-        let behind = 2
-        return (0..<config.maxResident).map { (target - behind + $0 + count * 2) % count }.sorted { order($0) < order($1) }
+        if count <= config.maxResident { return (0..<count).map { (target + direction * $0 + count) % count } }
+        // Warm both sides of a scrub, prioritizing the direction of travel.
+        var indices = [target]
+        var distance = 1
+        while indices.count < config.maxResident {
+            for sign in [direction, -direction] {
+                let index = (target + sign * distance + count * 2) % count
+                if !indices.contains(index) { indices.append(index) }
+                if indices.count == config.maxResident { break }
+            }
+            distance += 1
+        }
+        return indices
     }
-    private func order(_ frame: Int) -> Int { (frame - target + count) % count }
 
     /// Advance the state machine. Call on tile events and on a short timer.
     mutating func tick(now: Date = Date()) {
@@ -162,6 +173,12 @@ struct RadarBuffer {
             if requested[i] > 0, pending[i].isEmpty, quiet >= 0.15 { finish(i, failures[i] == 0 ? .ready : .incomplete, since: since, now: now) }
             else if requested[i] == 0, now.timeIntervalSince(since) >= config.settle { finish(i, .ready, since: since, now: now) }
             else if now.timeIntervalSince(since) >= config.giveUp { finish(i, .incomplete, since: since, now: now) }
+        }
+        // A scrubbed-to frame takes a loading slot immediately, even if older
+        // preloads are still in flight. Removing its warm layer cancels that work.
+        if states[target] == .idle {
+            let inFlight = resident.filter { if case .loading = states[$0] { return true }; return false }
+            if inFlight.count >= config.maxLoading, let last = inFlight.last { clear(last) }
         }
         var loading = resident.filter { if case .loading = states[$0] { return true }; return false }.count
         for i in resident where states[i] == .idle && loading < config.maxLoading { states[i] = .loading(since: now); loading += 1 }

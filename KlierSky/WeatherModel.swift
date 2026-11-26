@@ -46,6 +46,7 @@ import SwiftUI
         else if hasSelectedLocation { await refresh() }
     }
     private func show(_ place: Place) {
+        RainNotifications.shared.clear()
         self.place = place; hasSelectedLocation = true; awaitingLocation = false
         if let cache = CachedForecast.load(place) { forecast = cache.forecast; updated = cache.fetchedAt } else { forecast = nil; updated = nil }
         frames = []; air = nil; modelFrames = []; modelFramesError = nil; alternatives = []
@@ -151,6 +152,9 @@ import SwiftUI
         }
         guard requestID == id else { return }
         loading = false
+        if let forecast, let updated {
+            await RainNotifications.shared.update(forecast: forecast, hours: hours, place: location, fetchedAt: updated)
+        }
         Diagnostics.shared.add("refresh", "Weather refresh finished")
         if UserDefaults.standard.bool(forKey: "verifyStations") { await AdaptiveStore.shared.collectIfDue(location) }
     }

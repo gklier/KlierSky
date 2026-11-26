@@ -2,16 +2,17 @@
 
 ![KlierSky — Weather worth looking at](Docs/Images/hero.svg)
 
-**A compact, native iPhone weather app with a little nostalgia and a clearer outlook.**
+**Compact, native weather for iPhone and Android. A little nostalgia, a clearer outlook.**
 
-SwiftUI · MapLibre Native · WidgetKit · Foreca · Open-Meteo · MET Norway · NWS
+SwiftUI for iPhone · Native Android · MapLibre Native · WidgetKit · Foreca · Open-Meteo
 
 [![iOS 17+](https://img.shields.io/badge/iOS-17%2B-087b96?style=flat-square)](#build-it)
+[![Android 8+ beta](https://img.shields.io/badge/Android-8%2B_beta-3DDC84?style=flat-square&logo=android&logoColor=white)](#android-beta)
 [![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm_Noncommercial-6e7bd8?style=flat-square)](LICENSE.md)
 [![Status: early beta](https://img.shields.io/badge/status-early_beta-f4bf60?style=flat-square)](#where-things-stand)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_a_Coffee-gklier-FFDD00?style=flat-square&logo=buymeacoffee&logoColor=000)](https://buymeacoffee.com/gklier)
 
-[The app](#a-forecast-you-can-read-at-a-glance) · [Many sources](#many-sources-one-forecast) · [Screenshots](#a-look-inside) · [Build](#build-it) · [Roadmap](#what-comes-next) · [Support](#support-kliersky)
+[The app](#a-forecast-you-can-read-at-a-glance) · [Many sources](#many-sources-one-forecast) · [Screenshots](#a-look-inside) · [Build](#build-it) · [Android download](#android-beta) · [Roadmap](#what-comes-next) · [Support](#support-kliersky)
 
 </div>
 
@@ -32,7 +33,7 @@ Instead of trusting one service, KlierSky can average all of them: Foreca when c
 - **No accuracy gain is claimed.** Averaging often softens big misses, but that has not been measured here. One-source mode remains a setting.
 - **Free first.** Every source above needs no paid key. [Terms and limits →](Docs/PROVIDERS.md)
 
-*Development branch: tested against recorded and live responses, built in Xcode, and launched in the iPhone simulator.*
+*The iOS 0.5.0 beta builds in Xcode and is available through the existing SideStore feed. Six Swift check groups and 46 gateway tests pass.*
 
 ## A look inside
 
@@ -158,3 +159,25 @@ Found a bug or have a useful idea? [Open an issue](https://github.com/gklier/Kli
 ---
 
 <div align="center"><sub>Built by gklier · Early beta · Original design and implementation</sub></div>
+
+
+## Android beta
+
+**KlierSky 0.2.0 beta brings the iPhone app’s core weather features to Android.** Get adaptive forecasts with source comparison, observed radar and NOAA HRRR futurecast on one map, detailed hourly and daily weather, US weather alerts, historical temperature comparisons, personal stations, rain notifications, and current, hourly and daily widgets.
+
+[Install or update on Android](https://github.com/gklier/KlierSky/releases/download/android-v0.2.0-beta/KlierSky-Android-0.2.0-beta.apk) · [Download the publishing AAB](https://github.com/gklier/KlierSky/releases/download/android-v0.2.0-beta/KlierSky-Android-0.2.0-beta.aab) · [Release notes and checksums](https://github.com/gklier/KlierSky/releases/tag/android-v0.2.0-beta) · [Android source and build guide](https://github.com/gklier/KlierSky/tree/android-v0.2.0-beta/Android)
+
+Install the APK over the previous signed KlierSky release to keep your settings and saved places. The new adaptive icon fills the launcher mask and supports Android’s themed icons.
+
+<table>
+<tr><th>Model futurecast</th><th>Hourly statistics</th><th>Historical comparisons</th></tr>
+<tr>
+<td width="33%"><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.2.0-beta/Android/Screenshots/parity/futurecast-map.png" width="300" alt="Live HRRR model precipitation with a past-to-future timeline"></td>
+<td width="33%"><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.2.0-beta/Android/Screenshots/parity/hourly-statistics.png" width="300" alt="Hourly forecast metrics on Android"></td>
+<td width="33%"><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.2.0-beta/Android/Screenshots/parity/history-past-day.png" width="300" alt="Android temperature history with a 30-year comparison"></td>
+</tr>
+</table>
+
+*Live weather snapshots from the Android 17 emulator.*
+
+Futurecast coverage and horizon depend on the available HRRR run. Rain notifications use hourly forecasts and Android background scheduling. Lock Screen widget placement depends on the device’s widget host. Foreca uses approved gateway access. Station credentials and the Foreca API key are managed through the server.

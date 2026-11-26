@@ -107,3 +107,29 @@ Pay for weather data only once KlierSky earns money. Until then, free sources on
 - **Look:** modern, Liquid Glass, Dark Sky-minimal, enhanced. Recorded in [DESIGN-DIRECTION.md](DESIGN-DIRECTION.md); visual work needs the Mac.
 - **Emphasis:** futurecast map, design and adaptive weather.
 - **Android:** under consideration, possibly first, with a friend as tester. Not started; options and a recommendation are in [CLOUD-REVIEW-2026-11-10.md](CLOUD-REVIEW-2026-11-10.md).
+
+
+## Family usability update (November 25, 2026)
+
+Settings must expose everyday appearance, units, startup location, saved-location map, notifications and personal-station setup. Forecast-source controls, screen options, adaptive diagnostics and owner/server management belong under Administration. Appearance changes must reach presented sheets and the map immediately without restarting.
+
+Radar scrubbing must preload in either direction, prioritize the requested frame, use bounded persistent tile caching and keep diagnostic disk writes out of playback. Verify on-device performance before claiming a frame-rate improvement.
+
+A personal Tempest or Weather Underground PWS can be connected from Settings. Personal credentials are sent to the existing HTTPS gateway, stored per principal in owner-only files, and never returned to the app. Station observations have source, timestamp, stale indicator and distance to the forecast location. They do not replace model forecasts or establish independent forecast-skill evidence.
+
+History provides today's forecast high/low compared with last year's same date and the 1991–2020 matching-calendar-date ERA5 reanalysis average. Missing values remain missing, at least 20 complete baseline years are required, and source/limitations are visible. A date picker browses archived daily temperatures. UV, humidity, dew point, wind and other available hourly details need a dedicated chart and readings through 48 hours. Saved favorites are selectable as map pins.
+
+Rain notifications are opt-in local notifications based on the selected location's hourly forecast. Preferences include lead time and probability threshold. Wording retains hourly precision and source, with no claim of minute-accurate onset. Suppress repeated warnings and cancel obsolete pending warnings when forecast/location/preferences change. Refresh from foreground and available background opportunities. iOS controls background scheduling. A user-triggered test verifies notification delivery. Physical-device delivery and prolonged background freshness still need family testing.
+
+## Android preview
+Owner requests an AAB on GitHub. The native Android alpha uses the existing server-held Foreca account with per-device approval and includes explicit feature/validation status in Android/README.md.
+
+Android design follow-up (November 25): replace the initial alpha’s oversized controls and sparse layout with compact current/map/12-hour outlook/hourly/daily/current-statistics hierarchy. Use original weather symbols, system typography, readable map labels, colored rain/wind charts and temperature ranges. Validate actual Android emulator screenshots and light/dark/light switching before publishing the replacement; retain explicit Android feature-gap notes.
+
+Android sheet refinement (November 25): keep the approved main screen design. Replace boxy stock preference/location/detail dialogs with rounded floating sheets, system typography, grouped settings, light/dark surfaces and clear selection indicators. Match the iPhone design direction while retaining Android back/outside dismissal, keyboard support and accessibility. Group service access and alpha details under Administration.
+
+Android settings alignment (November 25): owner explicitly requests the iPhone settings design rather than additional Android owner sign-in. Use the actual iPhone form screenshot as the reference: tall edge-to-edge panel, centered inline title and Done control, compact grouped rows, Appearance & units and Locations sections, blue inline values, anchored preference menus, in-panel Administration navigation and back behavior. Preserve the approved main forecast UI. Rain units and 24-hour clock controls must affect real app formatting and persist independently. Do not show unsupported iOS-only feature controls as though they work on Android.
+
+## Android 0.2.0 beta
+
+See [Android feature parity and validation](ANDROID-PARITY.md) for implemented capabilities, release checks and remaining physical-device tests.
