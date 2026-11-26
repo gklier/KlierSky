@@ -7,12 +7,12 @@
 SwiftUI for iPhone · Native Android · MapLibre Native · WidgetKit · Foreca · Open-Meteo
 
 [![iOS 17+](https://img.shields.io/badge/iOS-17%2B-087b96?style=flat-square)](#build-it)
-[![Android 8+ alpha](https://img.shields.io/badge/Android-8%2B_alpha-3DDC84?style=flat-square&logo=android&logoColor=white)](#android-preview)
+[![Android 8+ beta](https://img.shields.io/badge/Android-8%2B_beta-3DDC84?style=flat-square&logo=android&logoColor=white)](#android-beta)
 [![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm_Noncommercial-6e7bd8?style=flat-square)](LICENSE.md)
 [![Status: early beta](https://img.shields.io/badge/status-early_beta-f4bf60?style=flat-square)](#where-things-stand)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_a_Coffee-gklier-FFDD00?style=flat-square&logo=buymeacoffee&logoColor=000)](https://buymeacoffee.com/gklier)
 
-[The app](#a-forecast-you-can-read-at-a-glance) · [Many sources](#many-sources-one-forecast) · [Screenshots](#a-look-inside) · [Build](#build-it) · [Roadmap](#what-comes-next) · [Support](#support-kliersky)
+[The app](#a-forecast-you-can-read-at-a-glance) · [Many sources](#many-sources-one-forecast) · [Screenshots](#a-look-inside) · [Build](#build-it) · [Android download](#android-beta) · [Roadmap](#what-comes-next) · [Support](#support-kliersky)
 
 </div>
 
@@ -161,37 +161,23 @@ Found a bug or have a useful idea? [Open an issue](https://github.com/gklier/Kli
 <div align="center"><sub>Built by gklier · Early beta · Original design and implementation</sub></div>
 
 
-## Android preview
+## Android beta
 
-**Android 0.1.3 alpha brings the compact KlierSky forecast and iPhone-style settings to Android.** Current conditions lead into a native MapLibre map, a colored 12-hour rain/wind outlook, six hourly rows expandable to 24, daily temperature ranges and current details. City search, current location, persistent favorites, a saved-locations map, and UV/humidity forecasts are included.
+**KlierSky 0.2.0 beta brings the iPhone app’s core weather features to Android.** Get adaptive forecasts with source comparison, observed radar and NOAA HRRR futurecast on one map, detailed hourly and daily weather, US weather alerts, historical temperature comparisons, personal stations, rain notifications, and current, hourly and daily widgets.
 
-<p align="center">
-<a href="https://github.com/gklier/KlierSky/releases/download/android-v0.1.3-alpha/KlierSky-Android-0.1.3-alpha.apk"><img src="https://img.shields.io/badge/Download_Android_APK-0.1.3_alpha-087b96?style=for-the-badge&amp;logo=android&amp;logoColor=white" alt="Download KlierSky Android 0.1.3 APK"></a>
-</p>
+[Install or update on Android](https://github.com/gklier/KlierSky/releases/download/android-v0.2.0-beta/KlierSky-Android-0.2.0-beta.apk) · [Download the publishing AAB](https://github.com/gklier/KlierSky/releases/download/android-v0.2.0-beta/KlierSky-Android-0.2.0-beta.aab) · [Release notes and checksums](https://github.com/gklier/KlierSky/releases/tag/android-v0.2.0-beta) · [Android source and build guide](https://github.com/gklier/KlierSky/tree/android-v0.2.0-beta/Android)
 
-[Download the AAB](https://github.com/gklier/KlierSky/releases/download/android-v0.1.3-alpha/KlierSky-Android-0.1.3-alpha.aab) · [Release notes and checksums](https://github.com/gklier/KlierSky/releases/tag/android-v0.1.3-alpha) · [Android source and build guide](https://github.com/gklier/KlierSky/tree/android-v0.1.3-alpha/Android)
-
-**Use the APK to install or update an Android phone.** Install it over the existing alpha to keep app data. The AAB is a publishing bundle, not a directly installable file. No Google Play release is available yet.
+Install the APK over the previous signed KlierSky release to keep your settings and saved places. The new adaptive icon fills the launcher mask and supports Android’s themed icons.
 
 <table>
-<tr><th>Light forecast</th><th>Dark forecast</th><th>Daily details</th></tr>
+<tr><th>Model futurecast</th><th>Hourly statistics</th><th>Historical comparisons</th></tr>
 <tr>
-<td width="33%"><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.1.3-alpha/Android/Screenshots/design-checks/forecast-light.png" width="300" alt="Live Android light forecast with current conditions, observed radar, outlook and compact hourly rows"></td>
-<td width="33%"><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.1.3-alpha/Android/Screenshots/design-checks/forecast-dark-temperature.png" width="300" alt="Live Android dark forecast with readable weather symbols and map labels"></td>
-<td width="33%"><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.1.3-alpha/Android/Screenshots/design-checks/forecast-details-dark.png" width="300" alt="Android daily temperature ranges and current weather statistics"></td>
-</tr>
-<tr><th>Settings in daylight</th><th>Settings after dark</th><th>Inline choices</th></tr>
-<tr>
-<td><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.1.3-alpha/Android/Screenshots/design-checks/settings-sheet-light.png" width="300" alt="Android settings with centered title, Done button and grouped preferences in light mode"></td>
-<td><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.1.3-alpha/Android/Screenshots/design-checks/settings-sheet-dark.png" width="300" alt="Android settings aligned with the iPhone form in dark mode"></td>
-<td><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.1.3-alpha/Android/Screenshots/design-checks/appearance-sheet-dark.png" width="300" alt="Anchored appearance menu with System, Light and Dark choices"></td>
+<td width="33%"><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.2.0-beta/Android/Screenshots/parity/futurecast-map.png" width="300" alt="Live HRRR model precipitation with a past-to-future timeline"></td>
+<td width="33%"><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.2.0-beta/Android/Screenshots/parity/hourly-statistics.png" width="300" alt="Hourly forecast metrics on Android"></td>
+<td width="33%"><img src="https://raw.githubusercontent.com/gklier/KlierSky/android-v0.2.0-beta/Android/Screenshots/parity/history-past-day.png" width="300" alt="Android temperature history with a 30-year comparison"></td>
 </tr>
 </table>
 
-*Actual Pixel 7 Android 16 emulator captures, November 25, 2026. Weather values are snapshots.*
+*Live weather snapshots from the Android 17 emulator.*
 
-Settings now follows the iPhone form: a tall panel, centered header and Done button, compact grouped rows, blue inline values and anchored selection menus. Light, dark and system appearance, independent rain units, a 24-hour clock, startup location and in-panel Administration navigation work in this build. Android retains its system typography and original artwork.
-
-Foreca works through owner-approved, read-only device access to the existing server. The vendor key stays on the server; Open-Meteo is the labeled fallback. **Android radar is observed-only.** The separate 12-hour point forecast is not futurecast radar. The iOS adaptive blend, model futurecast, history, personal stations, notifications and widgets still need Android ports.
-
-Release builds, lint, signatures and AAB structure were checked. Emulator UI checks cover live forecasts, map rendering, theme changes, forecast expansion, settings menus, units, clock preference and navigation. Physical-device performance, location permission and Foreca enrollment still need testing.
+Futurecast coverage and horizon depend on the available HRRR run. Rain notifications use hourly forecasts and Android background scheduling. Lock Screen widget placement depends on the device’s widget host. Foreca uses approved gateway access. Station credentials and the Foreca API key are managed through the server.

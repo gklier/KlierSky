@@ -22,6 +22,7 @@ final class SettingsPanel {
   private final SharedPreferences preferences;
   private final Runnable changed, useCurrent, savedMap, refresh;
   private final Supplier<String> forecaStatus;
+  private final java.util.function.Consumer<String> openFeature;
   private final Dialog dialog;
   private FrameLayout root;
   private LinearLayout body, group;
@@ -37,7 +38,8 @@ final class SettingsPanel {
       Runnable useCurrent,
       Runnable savedMap,
       Runnable refresh,
-      Supplier<String> forecaStatus) {
+      Supplier<String> forecaStatus,
+      java.util.function.Consumer<String> openFeature) {
     this.activity = activity;
     this.preferences = preferences;
     this.changed = changed;
@@ -45,6 +47,7 @@ final class SettingsPanel {
     this.savedMap = savedMap;
     this.refresh = refresh;
     this.forecaStatus = forecaStatus;
+    this.openFeature = openFeature;
     dialog = new Dialog(activity, R.style.WeatherSheet);
     dialog.setCanceledOnTouchOutside(true);
     dialog.setOnKeyListener(
@@ -344,7 +347,7 @@ final class SettingsPanel {
         inches ? 1 : 0,
         v -> preferences.edit().putBoolean("rainInches", v == 1).apply());
     LinearLayout clockRow = rowBase("24-hour clock");
-    PreferenceSwitch clock = new PreferenceSwitch();
+    SkySwitch clock = new SkySwitch(activity, dark);
     clock.setChecked(preferences.getBoolean("clock24", false));
     clock.setContentDescription("24-hour clock");
     clock.setOnCheckedChangeListener(
@@ -373,6 +376,9 @@ final class SettingsPanel {
           savedMap.run();
         });
     section("");
+    row("Notifications", null, false, () -> openFeature.accept("notifications"));
+    row("My weather station", null, false, () -> openFeature.accept("station"));
+    row("Widgets", null, false, () -> openFeature.accept("widgets"));
     row(
         "Administration",
         null,
@@ -381,10 +387,22 @@ final class SettingsPanel {
           page = "Administration";
           render();
         });
-    note("Administration contains service access and app information.");
+    note(
+        "Administration contains forecast sources, screen options, diagnostics and server"
+            + " settings.");
   }
 
   private void administration() {
+    section("Forecast");
+    row("Forecast sources", null, false, () -> openFeature.accept("sources"));
+    row("Compare sources", null, false, () -> openFeature.accept("comparison"));
+    row("On the main screen", null, false, () -> openFeature.accept("display"));
+    row("Adaptive weather", null, false, () -> openFeature.accept("adaptive"));
+    section("More");
+    row("Weather history", null, false, () -> openFeature.accept("history"));
+    row("Weather alerts", null, false, () -> openFeature.accept("alerts"));
+    row("Weather Lab · diagnostics", null, false, () -> openFeature.accept("diagnostics"));
+    row("Server & family access", null, false, () -> openFeature.accept("owner"));
     section("Service");
     row(
         "Foreca service access",
@@ -401,15 +419,6 @@ final class SettingsPanel {
         () -> {
           dismiss();
           refresh.run();
-        });
-    section("About KlierSky");
-    row(
-        "Android alpha feature status",
-        null,
-        false,
-        () -> {
-          page = "Android alpha";
-          render();
         });
     note("Version " + BuildConfig.VERSION_NAME);
   }
@@ -438,72 +447,6 @@ final class SettingsPanel {
       path.lineTo(x, y + dp(6));
       path.lineTo(x + dp(3), y + dp(3));
       canvas.drawPath(path, paint);
-    }
-  }
-
-  private final class PreferenceSwitch extends CompoundButton {
-    private final android.graphics.Paint paint =
-        new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-    private float position;
-    private boolean ready;
-    private android.animation.ValueAnimator animation;
-
-    PreferenceSwitch() {
-      super(activity);
-      setButtonDrawable((android.graphics.drawable.Drawable) null);
-      setClickable(true);
-      setBackground(null);
-      setFocusable(true);
-      ready = true;
-    }
-
-    @Override
-    protected void onMeasure(int width, int height) {
-      setMeasuredDimension(dp(55), dp(44));
-    }
-
-    @Override
-    public CharSequence getAccessibilityClassName() {
-      return Switch.class.getName();
-    }
-
-    @Override
-    public void setChecked(boolean checked) {
-      super.setChecked(checked);
-      if (!ready) {
-        position = checked ? 1 : 0;
-        return;
-      }
-      if (animation != null) animation.cancel();
-      if (!isShown() || !android.animation.ValueAnimator.areAnimatorsEnabled()) {
-        position = checked ? 1 : 0;
-        invalidate();
-        return;
-      }
-      animation = android.animation.ValueAnimator.ofFloat(position, checked ? 1 : 0);
-      animation.setDuration(180);
-      animation.addUpdateListener(
-          value -> {
-            position = (float) value.getAnimatedValue();
-            invalidate();
-          });
-      animation.start();
-    }
-
-    @Override
-    protected void onDraw(android.graphics.Canvas canvas) {
-      float left = dp(2), top = (getHeight() - dp(31)) / 2f;
-      paint.setColor(isChecked() ? 0xff34c759 : (dark ? 0xff636366 : 0xffe9e9eb));
-      canvas.drawRoundRect(left, top, left + dp(51), top + dp(31), dp(16), dp(16), paint);
-      paint.setColor(Color.WHITE);
-      canvas.drawCircle(
-          left + dp(15) + dp(21) * position, top + dp(15) + dp(1) / 2f, dp(13), paint);
-    }
-
-    @Override
-    protected void onDetachedFromWindow() {
-      if (animation != null) animation.cancel();
-      super.onDetachedFromWindow();
     }
   }
 

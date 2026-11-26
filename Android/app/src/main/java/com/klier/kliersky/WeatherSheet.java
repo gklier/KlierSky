@@ -208,6 +208,12 @@ final class WeatherSheet {
     return this;
   }
 
+  WeatherSheet custom(View view) {
+    body.addView(view, new LinearLayout.LayoutParams(-1, -2));
+    group = null;
+    return this;
+  }
+
   EditText input(String hint) {
     EditText field = new EditText(activity);
     field.setHint(hint);

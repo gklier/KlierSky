@@ -1,59 +1,30 @@
-# KlierSky Android alpha
+# KlierSky for Android
 
-A native Android preview with system typography and the KlierSky name, built from the same provider contracts as the iPhone app. The application ID is `com.klier.kliersky`, version `0.1.3-alpha`.
+KlierSky 0.2.0 beta runs on Android 8 and later. Use the [release APK](https://github.com/gklier/KlierSky/releases/download/android-v0.2.0-beta/KlierSky-Android-0.2.0-beta.apk) to install or update your phone. Install over the previous signed release to keep your data. The [AAB](https://github.com/gklier/KlierSky/releases/download/android-v0.2.0-beta/KlierSky-Android-0.2.0-beta.aab) is for publishing. [Release notes and checksums](https://github.com/gklier/KlierSky/releases/tag/android-v0.2.0-beta)
 
-Includes current conditions, feels-like temperature, compact hourly and daily forecasts, UV/humidity forecast readings, current-location permission with a saved-city fallback, city search, persistent favorites, saved-place map selection, light/dark/system appearance, units, and a MapLibre observed-radar timeline. Foreca is used through the existing HTTPS gateway when this device has owner-approved read-only access. The Foreca credential stays on the server. The encrypted device credential is backed by Android Keystore. Open-Meteo supplies the labeled fallback.
+- Compact current conditions, a 12-hour outlook, six hourly rows expandable to 24, and detailed daily and 48-hour statistics. Choose a theme, units, and which details appear.
+- Search for cities, use current location, and pick persistent favorites from a map.
+- Browse observed RainViewer radar and run-pinned NOAA HRRR model futurecast on one timeline. The horizon reflects the available model run. An ambient cache and directional preloading help when scrubbing backward.
+- Compare forecast providers or let the app blend available sources. Optional local verification scores temperatures against independent observations. Starting weights and measured weights are labeled separately.
+- View US National Weather Service alerts, historical temperatures from ERA5, air quality, and timestamped observations from your configured Tempest or Weather Underground station.
+- Enable rain alerts with a lead time and chance threshold. Alerts use hourly predictions and Android's best-effort scheduling.
+- Pin current, hourly or daily weather widgets with their own location and units. Lock Screen availability depends on the Android widget host.
+- Manage gateway devices and server credentials under Administration. Approved family devices use read-only Foreca access. No vendor key is required on those devices.
 
-The iOS weighted blend, model futurecast, historical comparison, personal-station setup, rain reminders and widgets still need Android ports. This alpha has build, lint, signature and bundle-format checks. The live forecast UI was exercised on a Pixel 7 Android 16 emulator, including city search, light → dark → light changes, humidity selection, six/24-hour expansion and MapLibre rendering. Physical-device radar performance, location permission and live Foreca enrollment still need testing.
-
-## Install the alpha
-
-[Install APK](https://github.com/gklier/KlierSky/releases/download/android-v0.1.3-alpha/KlierSky-Android-0.1.3-alpha.apk) · [Download AAB](https://github.com/gklier/KlierSky/releases/download/android-v0.1.3-alpha/KlierSky-Android-0.1.3-alpha.aab) · [Release notes and checksums](https://github.com/gklier/KlierSky/releases/tag/android-v0.1.3-alpha)
-
-Use the APK on an Android phone. Install over the existing alpha to retain data; the package and signing certificate are unchanged. The AAB is for publishing, not direct installation.
-
-## Settings aligned with the iPhone app
-
-Version 0.1.3 uses the actual iPhone settings screenshot as its reference. Settings now opens in one tall panel with a centered inline title, Done control, compact grouped rows, matching dark/light surface colors and blue preference values. Appearance, temperature/wind, rain units and startup location open small anchored menus instead of separate bottom sheets. Administration navigates within the same panel, with Back and Done controls.
-
-Rain units are independent of temperature/wind units; the new 24-hour clock control changes forecast, chart and radar time formatting. Preferences persist, and existing rain-unit behavior is preserved on upgrade. Android system typography is retained; no Apple fonts or assets are bundled. Unsupported iOS-only features remain excluded from the normal settings form.
-
-<p align="center">
-  <img src="Screenshots/design-checks/settings-sheet-light.png" width="30%" alt="iPhone-style Android settings form in light mode" />
-  <img src="Screenshots/design-checks/settings-sheet-dark.png" width="30%" alt="iPhone-style Android settings form in dark mode" />
-  <img src="Screenshots/design-checks/appearance-sheet-dark.png" width="30%" alt="Anchored Android appearance selection menu" />
-</p>
-
-Emulator UI checks cover theme changes while keeping Settings open, anchored choices, independent rain units, clock mode, startup location and Administration navigation. Locations and forecast details continue to use the rounded sheets added in 0.1.2.
-
-## Design update
-
-Version 0.1.1 replaces the first alpha's oversized controls with a compact current/map/outlook/hourly/daily hierarchy, native system typography, original weather symbols, colored rain/wind charts, temperature ranges and readable light/dark themes. Hourly metrics update without rebuilding the map. Radar retains a clear observed timestamp and past-only timeline; the separate 12-hour chart is a forecast.
-
-These are live Android emulator captures, not mockups:
-
-<p align="center">
-  <img src="Screenshots/design-checks/forecast-light.png" width="30%" alt="KlierSky Android light forecast" />
-  <img src="Screenshots/design-checks/forecast-dark-temperature.png" width="30%" alt="KlierSky Android dark forecast" />
-  <img src="Screenshots/design-checks/forecast-details-dark.png" width="30%" alt="KlierSky Android daily forecast and conditions" />
-</p>
+See [parity and validation notes](../Docs/ANDROID-PARITY.md) and [data and attribution](../Docs/PROVIDERS.md). Screenshots are live emulator captures in [Screenshots/parity](Screenshots/parity).
 
 ## Build
 
-Requires JDK 17, Android SDK platform 36 and build tools 36.0.0. Set `sdk.dir` in an untracked `local.properties`, or use `ANDROID_HOME`.
+Use JDK 17, Android SDK platform 36 and build tools 36.0.0. Set `ANDROID_HOME` or `sdk.dir` in an untracked `local.properties`.
 
-```
-./gradlew :app:bundleDebug :app:assembleDebug
-```
-
-For a signed release, set `KLIERSKY_KEYSTORE_PATH`, `KLIERSKY_STORE_PASSWORD` and `KLIERSKY_KEY_PASSWORD` in the build environment. The upload-key alias is `kliersky-upload`. Keep the keystore and credentials in private storage outside this checkout.
-
-```
-./gradlew :app:bundleRelease :app:assembleRelease :app:lintRelease
+```sh
+./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
 ```
 
-The AAB is a publishing bundle. Use the companion APK for direct installation on an Android phone. Google Play listing, enrollment, app signing configuration and review remain separate owner steps.
+For a signed release, set `KLIERSKY_KEYSTORE_PATH`, `KLIERSKY_STORE_PASSWORD` and `KLIERSKY_KEY_PASSWORD` outside the checkout. The release alias is `kliersky-upload`.
 
-## Data and attribution
+```sh
+./gradlew :app:assembleRelease :app:bundleRelease :app:lintRelease
+```
 
-Foreca service access uses the owner's existing entitlement. Open-Meteo's free endpoint is for non-commercial use. RainViewer supplies observed radar frames. OpenFreeMap uses OpenMapTiles and OpenStreetMap data. Native MapLibre retains its attribution control. See the repository's provider notes and the respective provider terms before distributing beyond personal testing.
+The application ID is `com.klier.kliersky`. Android uses system typography and original adaptive launcher artwork.

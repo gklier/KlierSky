@@ -38,9 +38,6 @@ import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.MapView;
 import org.maplibre.android.maps.Style;
 import org.maplibre.android.style.layers.PropertyFactory;
-import org.maplibre.android.style.layers.RasterLayer;
-import org.maplibre.android.style.sources.RasterSource;
-import org.maplibre.android.style.sources.TileSet;
 
 public class MainActivity extends Activity {
   private final ExecutorService worker = Executors.newSingleThreadExecutor();
@@ -58,6 +55,11 @@ public class MainActivity extends Activity {
   private SeekBar radarSlider;
   private Button radarPlayButton;
   private LinearLayout hourlyContent;
+  private LinearLayout outlookContent;
+  private String outlookMetric = "Auto";
+  private RadarPlayback radarPlayback;
+  private TextView modelNote;
+  private boolean fullMap;
   private String hourlyMetric = "Temp";
   private long updatedSeconds;
   private boolean dark, celsius, expanded, savedMap, playing;
@@ -70,6 +72,10 @@ public class MainActivity extends Activity {
         @Override
         public void run() {
           if (!playing || result == null || result.radar().isEmpty()) return;
+          if (radarPlayback != null && !radarPlayback.ready()) {
+            handler.postDelayed(this, 100);
+            return;
+          }
           showFrame((frameIndex + 1) % result.radar().size());
           handler.postDelayed(this, 800);
         }
@@ -79,6 +85,14 @@ public class MainActivity extends Activity {
   public void onCreate(Bundle state) {
     super.onCreate(state);
     MapLibre.getInstance(this);
+    org.maplibre.android.offline.OfflineManager.getInstance(this)
+        .setMaximumAmbientCacheSize(
+            256L * 1024 * 1024,
+            new org.maplibre.android.offline.OfflineManager.FileSourceCallback() {
+              public void onSuccess() {}
+
+              public void onError(String message) {}
+            });
     preferences = getSharedPreferences("weather", MODE_PRIVATE);
     service = new WeatherService(this);
     if (!preferences.contains("rainInches"))
@@ -93,6 +107,19 @@ public class MainActivity extends Activity {
         place = WeatherService.Place.parse(new JSONObject(saved));
       } catch (Exception ignored) {
       }
+    try {
+      String widgetPlace = getIntent().getStringExtra("widgetPlace");
+      if (widgetPlace != null && !widgetPlace.isEmpty()) {
+        place = WeatherService.Place.parse(new JSONObject(widgetPlace));
+        preferences
+            .edit()
+            .putString("selectedPlace", place.json().toString())
+            .putBoolean("useCurrent", getIntent().getBooleanExtra("widgetFollowCurrent", false))
+            .apply();
+      } else if (saved.isEmpty())
+        preferences.edit().putString("selectedPlace", place.json().toString()).apply();
+    } catch (Exception ignored) {
+    }
     render();
     if (preferences.getBoolean("useCurrent", true)) useCurrent();
     else refresh();
@@ -191,6 +218,10 @@ public class MainActivity extends Activity {
   }
 
   private void disposeMap() {
+    if (radarPlayback != null) {
+      radarPlayback.close();
+      radarPlayback = null;
+    }
     if (mapView == null) return;
     if (resumed) mapView.onPause();
     if (started) mapView.onStop();
@@ -265,12 +296,29 @@ public class MainActivity extends Activity {
         text(
             result == null
                 ? "Loading forecast…"
-                : result.source() + " · updated " + clock(updatedSeconds),
+                : result.forecast().optString("_currentSource", result.source())
+                    + (result.forecast().optBoolean("_cached") ? " · saved " : " · updated ")
+                    + DateTimeFormatter.ofPattern(
+                            preferences.getBoolean("clock24", false)
+                                ? "MMM d HH:mm"
+                                : "MMM d h:mm a")
+                        .withZone(zone())
+                        .format(Instant.ofEpochSecond(updatedSeconds)),
             11,
             false);
     status.setTextColor(muted);
-    if (result != null) drawForecast();
-    else {
+    if (result != null) {
+      if (fullMap) {
+        drawMap();
+        content.addView(
+            button(
+                "Return to forecast",
+                () -> {
+                  fullMap = false;
+                  render();
+                }));
+      } else drawForecast();
+    } else {
       gap(90);
       status.setGravity(Gravity.CENTER);
       content.addView(status);
@@ -282,7 +330,7 @@ public class MainActivity extends Activity {
         text(
             "Weather · "
                 + (result == null ? "Open-Meteo" : result.source())
-                + "    Radar · RainViewer",
+                + "    Observed: RainViewer · Model: NOAA HRRR / IEM",
             10,
             false);
     sources.setTextColor(muted);
@@ -315,7 +363,9 @@ public class MainActivity extends Activity {
 
   private ZoneId zone() {
     try {
-      return ZoneId.of(result.forecast().optString("timezone", ZoneId.systemDefault().getId()));
+      return result.forecast().has("timezone")
+          ? ZoneId.of(result.forecast().getString("timezone"))
+          : java.time.ZoneOffset.ofTotalSeconds(result.forecast().optInt("utc_offset_seconds", 0));
     } catch (Exception ignored) {
       return ZoneId.systemDefault();
     }
@@ -328,7 +378,7 @@ public class MainActivity extends Activity {
         .format(Instant.ofEpochSecond(seconds));
   }
 
-  private static String condition(int code) {
+  static String condition(int code) {
     if (code == 0) return "Clear";
     if (code == 1) return "Mostly clear";
     if (code == 2) return "Partly cloudy";
@@ -349,7 +399,8 @@ public class MainActivity extends Activity {
     LinearLayout temperature = new LinearLayout(this);
     temperature.setGravity(Gravity.CENTER);
     temperature.addView(
-        new WeatherGraphics.Glyph(this, code, foreground, dark),
+        new WeatherGraphics.Glyph(
+            this, code, foreground, dark, current == null || current.optInt("is_day", 1) != 0),
         new LinearLayout.LayoutParams(dp(51), dp(51)));
     TextView degrees = text(temperature(number(current, "temperature_2m")), 62, true);
     degrees.setLetterSpacing(-0.045f);
@@ -361,16 +412,11 @@ public class MainActivity extends Activity {
     summary.setGravity(Gravity.CENTER);
     content.addView(summary);
     JSONObject daily = forecast.optJSONObject("daily");
-    JSONArray dayRows = forecast.optJSONArray("dailyRows");
-    JSONObject firstDay = dayRows == null ? null : dayRows.optJSONObject(0);
+    int todayIndex = DailyData.today(forecast, zone());
     double high =
-        firstDay != null
-            ? number(firstDay, "high")
-            : daily == null ? Double.NaN : number(daily.optJSONArray("temperature_2m_max"), 0);
+        daily == null ? Double.NaN : number(daily.optJSONArray("temperature_2m_max"), todayIndex);
     double low =
-        firstDay != null
-            ? number(firstDay, "low")
-            : daily == null ? Double.NaN : number(daily.optJSONArray("temperature_2m_min"), 0);
+        daily == null ? Double.NaN : number(daily.optJSONArray("temperature_2m_min"), todayIndex);
     TextView feels =
         text(
             "Feels "
@@ -385,8 +431,38 @@ public class MainActivity extends Activity {
     feels.setGravity(Gravity.CENTER);
     feels.setPadding(0, dp(6), 0, dp(8));
     content.addView(feels);
+    if (preferences.getBoolean("showWind", true)) {
+      double wind = number(current, "wind_speed_10m");
+      TextView windLine =
+          text(
+              "Wind " + rounded(celsius ? wind * 1.609344 : wind, celsius ? " km/h" : " mph"),
+              11,
+              false);
+      windLine.setTextColor(muted);
+      windLine.setGravity(Gravity.CENTER);
+      windLine.setPadding(0, 0, 0, dp(6));
+      content.addView(windLine);
+    }
     status.setGravity(Gravity.CENTER);
     content.addView(status);
+    java.util.List<JSONObject> alerts =
+        WeatherAlerts.active(forecast.optJSONArray("_alerts"), Instant.now().getEpochSecond());
+    if (!alerts.isEmpty()) {
+      JSONObject alert = alerts.get(0);
+      boolean stale =
+          forecast.optBoolean("_alertsUnavailable")
+              || Instant.now().getEpochSecond() - forecast.optLong("_alertsChecked") > 1800;
+      Button warning =
+          button(
+              (stale ? "Saved alert · " : "")
+                  + alert.optString("event")
+                  + " · "
+                  + alert.optString("severity"),
+              () -> FeatureActivity.open(this, "alerts", place, 0));
+      warning.setTextColor(dark ? 0xffffcb85 : 0xff8d3600);
+      warning.setBackground(roundedBackground(dark ? 0xff392e20 : 0xffffecd2, 12));
+      content.addView(warning, new LinearLayout.LayoutParams(-1, dp(44)));
+    }
     gap(13);
     drawMap();
     if (hourly != null) {
@@ -395,27 +471,43 @@ public class MainActivity extends Activity {
       hourlyContent.setOrientation(LinearLayout.VERTICAL);
       content.addView(hourlyContent);
       drawHours(hourly);
-      drawDays(forecast);
-      heading("Right now");
-      LinearLayout stats = new LinearLayout(this);
-      addStat(
-          stats,
-          "Humidity",
-          rounded(number(current, "relative_humidity_2m"), "%"),
-          () -> detailForecast(hourly));
-      double mph = number(current, "wind_speed_10m");
-      addStat(
-          stats,
-          "Wind",
-          rounded(celsius ? mph * 1.609344 : mph, celsius ? " km/h" : " mph"),
-          () -> detailForecast(hourly));
-      int first = hourIndices(hourly, 1).stream().findFirst().orElse(0);
-      addStat(
-          stats,
-          "UV index",
-          rounded(number(hourly.optJSONArray("uv_index"), first), ""),
-          () -> detailForecast(hourly));
-      content.addView(stats);
+      content.addView(
+          button(
+              "Explore 48-hour statistics", () -> FeatureActivity.open(this, "metrics", place, 0)));
+      if (preferences.getBoolean("showComparison", false))
+        content.addView(
+            button(
+                "Compare forecast sources",
+                () -> FeatureActivity.open(this, "comparison", place, 0)));
+      if (preferences.getBoolean("showDaily", true)) drawDays(forecast);
+      if (preferences.getBoolean("showDetails", true)) {
+        heading("Right now");
+        LinearLayout stats = new LinearLayout(this);
+        addStat(
+            stats,
+            "Humidity",
+            rounded(number(current, "relative_humidity_2m"), "%"),
+            () -> detailForecast(hourly));
+        double mph = number(current, "wind_speed_10m");
+        addStat(
+            stats,
+            "Wind",
+            rounded(celsius ? mph * 1.609344 : mph, celsius ? " km/h" : " mph"),
+            () -> detailForecast(hourly));
+        int first = hourIndices(hourly, 1).stream().findFirst().orElse(0);
+        addStat(
+            stats,
+            "UV index",
+            rounded(number(hourly.optJSONArray("uv_index"), first), ""),
+            () -> detailForecast(hourly));
+        content.addView(stats);
+        drawExtraStats(current, hourly);
+      }
+      drawStation(forecast);
+      content.addView(
+          button("Weather history", () -> FeatureActivity.open(this, "history", place, 0)));
+      content.addView(
+          button("Weather alerts", () -> FeatureActivity.open(this, "alerts", place, 0)));
     }
   }
 
@@ -445,74 +537,159 @@ public class MainActivity extends Activity {
 
   private void drawOutlook(JSONObject hourly) {
     List<Integer> indices = hourIndices(hourly, 12);
-    boolean rainInches = preferences.getBoolean("rainInches", !celsius);
     if (indices.isEmpty()) return;
+    if (outlookContent == null || outlookContent.getParent() != content) {
+      outlookContent = new LinearLayout(this);
+      outlookContent.setOrientation(LinearLayout.VERTICAL);
+      content.addView(outlookContent);
+    }
+    outlookContent.removeAllViews();
     JSONArray rain = hourly.optJSONArray("precipitation"),
         chances = hourly.optJSONArray("precipitation_probability"),
         times = hourly.optJSONArray("time");
-    boolean wet =
-        indices.stream().anyMatch(i -> number(rain, i) > 0.05 || number(chances, i) >= 35);
-    String headline = "Wind over the next 12 hours";
-    if (wet) {
+    boolean wet = indices.stream().anyMatch(i -> number(rain, i) > .05 || number(chances, i) >= 35),
+        hasRain = indices.stream().anyMatch(i -> Double.isFinite(number(rain, i))),
+        hasChance = indices.stream().anyMatch(i -> Double.isFinite(number(chances, i)));
+    String chosen =
+        outlookMetric.equals("Auto")
+            ? (wet ? (hasRain ? "Rain" : hasChance ? "Chance" : "Wind") : "Wind")
+            : outlookMetric;
+    String key =
+        chosen.equals("Rain")
+            ? "precipitation"
+            : chosen.equals("Chance")
+                ? "precipitation_probability"
+                : chosen.equals("Temp") ? "temperature_2m" : "wind_speed_10m";
+    boolean inches = preferences.getBoolean("rainInches", !celsius);
+    String unit =
+        chosen.equals("Rain")
+            ? (inches ? " in" : " mm")
+            : chosen.equals("Chance")
+                ? "%"
+                : chosen.equals("Temp") ? "°" : celsius ? " km/h" : " mph";
+    String headline =
+        chosen.equals("Wind")
+            ? "Wind over the next 12 hours"
+            : chosen.equals("Temp")
+                ? "Temperature over the next 12 hours"
+                : "Precipitation over the next 12 hours";
+    if (wet && (chosen.equals("Rain") || chosen.equals("Chance"))) {
       int onset =
           indices.stream()
-              .filter(i -> number(rain, i) > 0.05 || number(chances, i) >= 35)
+              .filter(i -> number(rain, i) > .05 || number(chances, i) >= 35)
               .findFirst()
               .orElse(indices.get(0));
+      double reportedCode = number(hourly.optJSONArray("weather_code"), onset);
+      int code = Double.isFinite(reportedCode) ? (int) reportedCode : -1;
+      String word = code >= 71 && code <= 77 || code == 85 || code == 86 ? "Snow" : "Rain";
       headline =
-          onset == indices.get(0)
-              ? "Rain possible this hour"
-              : "Rain possible around " + clock(times.optLong(onset));
+          word
+              + " possible "
+              + (onset == indices.get(0) ? "this hour" : "around " + clock(times.optLong(onset)));
     }
     TextView title = text(headline, 17, true);
-    title.setPadding(0, dp(16), 0, dp(8));
-    content.addView(title);
+    title.setPadding(0, dp(16), 0, dp(6));
+    outlookContent.addView(title);
+    HorizontalScrollView scroll = new HorizontalScrollView(this);
+    scroll.setHorizontalScrollBarEnabled(false);
+    LinearLayout choices = new LinearLayout(this);
+    for (String option : new String[] {"Auto", "Rain", "Chance", "Wind", "Temp"}) {
+      Button button =
+          button(
+              option,
+              () -> {
+                outlookMetric = option;
+                drawOutlook(hourly);
+              });
+      button.setContentDescription("Outlook metric " + option);
+      button.setTextSize(11);
+      button.setTextColor(option.equals(outlookMetric) ? accent : muted);
+      choices.addView(button, new LinearLayout.LayoutParams(-2, dp(32)));
+    }
+    scroll.addView(choices);
+    outlookContent.addView(scroll);
     double[] values = new double[indices.size()];
+    long[] stamps = new long[indices.size()];
     String[] labels = new String[indices.size()];
     double max = 0;
     int available = 0;
     for (int j = 0; j < indices.size(); j++) {
       int i = indices.get(j);
-      double value = number(wet ? rain : hourly.optJSONArray("wind_speed_10m"), i);
-      values[j] = wet ? (rainInches ? value / 25.4 : value) : (celsius ? value * 1.609344 : value);
-      if (Double.isFinite(values[j])) {
-        max = Math.max(max, values[j]);
-        available++;
-      }
+      double value = number(hourly.optJSONArray(key), i);
+      if (chosen.equals("Rain") && inches) value /= 25.4;
+      else if (chosen.equals("Wind") && celsius) value *= 1.609344;
+      else if (chosen.equals("Temp") && celsius) value = (value - 32) / 1.8;
+      values[j] = value;
+      stamps[j] = times.optLong(i);
       labels[j] =
           DateTimeFormatter.ofPattern(preferences.getBoolean("clock24", false) ? "HH:mm" : "ha")
               .withZone(zone())
-              .format(Instant.ofEpochSecond(times.optLong(i)))
+              .format(Instant.ofEpochSecond(stamps[j]))
               .toLowerCase(java.util.Locale.ROOT);
+      if (Double.isFinite(value)) {
+        max = Math.max(max, value);
+        available++;
+      }
     }
-    LinearLayout caption = new LinearLayout(this);
-    TextView span = text("Next 12 hours · " + (wet ? "Precipitation" : "Wind"), 11, false);
-    span.setTextColor(accent);
-    caption.addView(span, new LinearLayout.LayoutParams(0, -2, 1));
-    String unit = wet ? (rainInches ? "in" : "mm") : (celsius ? "km/h" : "mph");
-    TextView peak =
+    TextView reading =
         text(
             available == 0
                 ? "Unavailable"
-                : "Peak "
+                : "Next 12 hours · peak "
                     + String.format(
-                        java.util.Locale.getDefault(), wet ? "%.2f %s" : "%.0f %s", max, unit),
+                        java.util.Locale.getDefault(),
+                        chosen.equals("Rain") ? "%.2f%s" : "%.0f%s",
+                        max,
+                        unit),
+            11,
+            false);
+    reading.setTextColor(accent);
+    reading.setPadding(0, 0, 0, dp(3));
+    outlookContent.addView(reading);
+    View chart;
+    if (chosen.equals("Temp")) {
+      final String chosenUnit = unit;
+      chart =
+          new MetricChart(
+              this,
+              stamps,
+              values,
+              muted,
+              accent,
+              hairline(),
+              i ->
+                  reading.setText(
+                      clock(stamps[i])
+                          + " · "
+                          + String.format(
+                              java.util.Locale.getDefault(), "%.1f%s", values[i], chosenUnit)));
+    } else
+      chart =
+          new WeatherGraphics.Bars(
+              this,
+              values,
+              labels,
+              muted,
+              chosen.equals("Wind") ? Color.rgb(69, 151, 141) : Color.rgb(55, 145, 205),
+              hairline(),
+              chosen.equals("Chance")
+                  ? 100
+                  : Math.max(chosen.equals("Rain") ? (inches ? .04 : 1) : 5, max * 1.15));
+    chart.setContentDescription(
+        headline
+            + ". Hourly model forecast. "
+            + ForecastSources.fieldSource(result.forecast(), "hourly", key));
+    outlookContent.addView(chart, new LinearLayout.LayoutParams(-1, dp(96)));
+    TextView source =
+        text(
+            "Hourly model values · "
+                + ForecastSources.fieldSource(result.forecast(), "hourly", key)
+                + (available < indices.size() ? " · Missing values shown as gaps" : ""),
             10,
             false);
-    peak.setTextColor(muted);
-    caption.addView(peak);
-    content.addView(caption);
-    WeatherGraphics.Bars chart =
-        new WeatherGraphics.Bars(
-            this,
-            values,
-            labels,
-            muted,
-            wet ? Color.rgb(55, 145, 205) : Color.rgb(69, 151, 141),
-            hairline(),
-            Math.max(wet ? (rainInches ? 0.04 : 1) : 5, max * 1.15));
-    chart.setContentDescription(headline + ". Hourly forecast. " + result.source());
-    content.addView(chart, new LinearLayout.LayoutParams(-1, dp(96)));
+    source.setTextColor(muted);
+    source.setPadding(0, dp(3), 0, dp(4));
+    outlookContent.addView(source);
   }
 
   private void drawHours(JSONObject hourly) {
@@ -541,6 +718,7 @@ public class MainActivity extends Activity {
                 hourlyMetric = metric;
                 drawHours(hourly);
               });
+      tab.setContentDescription("Hourly metric " + metric);
       tab.setTextColor(metric.equals(hourlyMetric) ? surface : foreground);
       tab.setTextSize(11);
       tab.setBackground(
@@ -581,11 +759,12 @@ public class MainActivity extends Activity {
               ? -1
               : hourly.optJSONArray("weather_code").optInt(i, -1);
       line.addView(
-          new WeatherGraphics.Glyph(this, weather, foreground, dark),
+          new WeatherGraphics.Glyph(
+              this, weather, foreground, dark, number(hourly.optJSONArray("is_day"), i) != 0),
           new LinearLayout.LayoutParams(dp(28), dp(28)));
       double chance = number(hourly.optJSONArray("precipitation_probability"), i);
       TextView condition =
-          text(chance >= 20 ? rounded(chance, "% rain") : condition(weather), 11, false);
+          text(chance >= 20 ? rounded(chance, "% precip") : condition(weather), 11, false);
       condition.setTextColor(muted);
       condition.setPadding(dp(9), 0, dp(5), 0);
       condition.setMaxLines(1);
@@ -609,59 +788,52 @@ public class MainActivity extends Activity {
           clock(times.optLong(i)) + ", " + hourlyMetric + " " + label + ", " + condition(weather));
       hourlyContent.addView(line, new LinearLayout.LayoutParams(-1, dp(33)));
     }
+    TextView source =
+        text(
+            hourlyMetric
+                + " by hour · "
+                + ForecastSources.fieldSource(result.forecast(), "hourly", key),
+            10,
+            false);
+    source.setTextColor(muted);
+    source.setPadding(0, dp(6), 0, 0);
+    hourlyContent.addView(source);
   }
 
   private void drawDays(JSONObject forecast) {
-    record Day(String name, double high, double low, int code, double chance) {}
-    List<Day> days = new ArrayList<>();
-    JSONArray rows = forecast.optJSONArray("dailyRows");
-    if (rows != null)
-      for (int i = 0; i < Math.min(rows.length(), 10); i++) {
-        JSONObject day = rows.optJSONObject(i);
-        if (day == null) continue;
-        String date = day.optString("dateKey");
-        String name = date;
-        try {
-          name = java.time.LocalDate.parse(date).format(DateTimeFormatter.ofPattern("EEE"));
-        } catch (Exception ignored) {
-        }
+    record Day(String name, double high, double low, int code, double chance, int index) {}
+    java.util.List<Day> days = new java.util.ArrayList<>();
+    JSONObject daily = forecast.optJSONObject("daily");
+    JSONArray dates = daily == null ? null : daily.optJSONArray("time");
+    java.time.LocalDate today = java.time.LocalDate.now(zone());
+    if (dates != null)
+      for (int i = 0; i < dates.length() && days.size() < 14; i++) {
+        java.time.LocalDate date =
+            Instant.ofEpochSecond(dates.optLong(i)).atZone(zone()).toLocalDate();
+        if (date.isBefore(today)) continue;
+        String name =
+            date.equals(today) ? "Today" : date.format(DateTimeFormatter.ofPattern("EEE"));
         days.add(
             new Day(
-                i == 0 ? "Today" : name,
-                number(day, "high"),
-                number(day, "low"),
-                day.optInt("code", -1),
-                number(day, "chance")));
+                name,
+                number(daily.optJSONArray("temperature_2m_max"), i),
+                number(daily.optJSONArray("temperature_2m_min"), i),
+                daily.optJSONArray("weather_code") == null
+                    ? -1
+                    : daily.optJSONArray("weather_code").optInt(i, -1),
+                number(daily.optJSONArray("precipitation_probability_max"), i),
+                i));
       }
-    else {
-      JSONObject daily = forecast.optJSONObject("daily");
-      JSONArray dates = daily == null ? null : daily.optJSONArray("time");
-      if (dates != null)
-        for (int i = 0; i < Math.min(dates.length(), 10); i++) {
-          String name =
-              i == 0
-                  ? "Today"
-                  : DateTimeFormatter.ofPattern("EEE")
-                      .withZone(zone())
-                      .format(Instant.ofEpochSecond(dates.optLong(i)));
-          days.add(
-              new Day(
-                  name,
-                  number(daily.optJSONArray("temperature_2m_max"), i),
-                  number(daily.optJSONArray("temperature_2m_min"), i),
-                  daily.optJSONArray("weather_code") == null
-                      ? -1
-                      : daily.optJSONArray("weather_code").optInt(i, -1),
-                  number(daily.optJSONArray("precipitation_probability_max"), i)));
-        }
-    }
     if (days.isEmpty()) return;
     heading("Daily");
     double minimum = days.stream().mapToDouble(Day::low).filter(Double::isFinite).min().orElse(0),
         maximum = days.stream().mapToDouble(Day::high).filter(Double::isFinite).max().orElse(100);
     for (Day day : days) {
+      final int selectedDay = day.index;
       LinearLayout line = new LinearLayout(this);
       line.setGravity(Gravity.CENTER_VERTICAL);
+      line.setOnClickListener(v -> FeatureActivity.open(this, "day", place, selectedDay));
+      line.setContentDescription(day.name + " daily forecast details");
       TextView name = text(day.name, 13, true);
       line.addView(name, new LinearLayout.LayoutParams(dp(53), -2));
       line.addView(
@@ -683,25 +855,125 @@ public class MainActivity extends Activity {
       line.addView(high, new LinearLayout.LayoutParams(dp(39), -2));
       content.addView(line, new LinearLayout.LayoutParams(-1, dp(33)));
     }
+    TextView source =
+        text("Daily · " + forecast.optString("_dailySource", result.source()), 10, false);
+    source.setTextColor(muted);
+    source.setPadding(0, dp(6), 0, 0);
+    content.addView(source);
   }
 
   private void detailForecast(JSONObject hourly) {
-    List<String> rows = new ArrayList<>();
-    JSONArray times = hourly.optJSONArray("time");
-    if (times != null)
-      for (int i = 0; i < times.length() && rows.size() < 48; i++) {
-        if (times.optLong(i) < Instant.now().getEpochSecond() - 3600) continue;
-        rows.add(
-            clock(times.optLong(i))
-                + "  ·  UV "
-                + rounded(number(hourly.optJSONArray("uv_index"), i), "")
-                + "  ·  "
-                + rounded(number(hourly.optJSONArray("relative_humidity_2m"), i), "% humidity"));
+    FeatureActivity.open(this, "metrics", place, 0);
+  }
+
+  private void drawExtraStats(JSONObject current, JSONObject hourly) {
+    String[][] fields = {
+      {"Dew point", "dew_point_2m", "showHumidity"},
+      {"Wind gust", "wind_gusts_10m", "showDetails"},
+      {"Wind direction", "wind_direction_10m", "showDetails"},
+      {"Pressure", "pressure_msl", "showPressure"},
+      {"Cloud cover", "cloud_cover", "showDetails"},
+      {"Visibility", "visibility", "showVisibility"}
+    };
+    for (String[] field : fields) {
+      if (!preferences.getBoolean(field[2], true)) continue;
+      double value = number(current, field[1]);
+      String unit = "";
+      if (field[1].equals("dew_point_2m")) unit = temperature(value);
+      else if (field[1].equals("wind_gusts_10m"))
+        unit = rounded(celsius ? value * 1.609344 : value, celsius ? " km/h" : " mph");
+      else if (field[1].equals("visibility"))
+        unit =
+            Double.isFinite(value)
+                ? String.format(
+                    java.util.Locale.getDefault(),
+                    "%.1f %s",
+                    celsius ? value / 1000 : value / 1609.344,
+                    celsius ? "km" : "mi")
+                : "—";
+      else
+        unit =
+            rounded(
+                value,
+                field[1].equals("pressure_msl")
+                    ? " hPa"
+                    : field[1].equals("wind_direction_10m") ? "°" : "%");
+      LinearLayout line = new LinearLayout(this);
+      TextView name = text(field[0], 12, false);
+      name.setTextColor(muted);
+      line.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
+      line.addView(text(unit, 13, true));
+      line.setPadding(0, dp(8), 0, dp(8));
+      line.setOnClickListener(v -> FeatureActivity.open(this, "metrics", place, 0));
+      content.addView(line);
+    }
+    JSONObject daily = result.forecast().optJSONObject("daily");
+    if (daily != null && preferences.getBoolean("showSun", true))
+      for (String key : new String[] {"sunrise", "sunset"}) {
+        double time = number(daily.optJSONArray(key), 0);
+        TextView sun =
+            text(
+                (key.equals("sunrise") ? "Sunrise · " : "Sunset · ")
+                    + (Double.isFinite(time) ? clock((long) time) : "—"),
+                12,
+                false);
+        sun.setTextColor(muted);
+        sun.setPadding(0, dp(7), 0, dp(7));
+        content.addView(sun);
       }
-    WeatherSheet sheet =
-        sheet("48-hour detail forecast", "Hourly UV and humidity · " + result.source());
-    for (String row : rows) sheet.row(row, null, null, false, null);
-    sheet.show();
+    JSONObject air = result.forecast().optJSONObject("_airQuality");
+    if (air != null) {
+      double aqi = number(air, "us_aqi");
+      String category =
+          aqi < 51
+              ? "Good"
+              : aqi < 101
+                  ? "Moderate"
+                  : aqi < 151
+                      ? "Unhealthy for sensitive groups"
+                      : aqi < 201 ? "Unhealthy" : aqi < 301 ? "Very unhealthy" : "Hazardous";
+      TextView value =
+          text(
+              "US AQI · "
+                  + rounded(aqi, "")
+                  + " · "
+                  + category
+                  + "\nOpen-Meteo / CAMS model, not a nearby sensor · "
+                  + clock(air.optLong("time")),
+              12,
+              false);
+      value.setTextColor(muted);
+      content.addView(value);
+    }
+  }
+
+  private void drawStation(JSONObject forecast) {
+    JSONObject reply = forecast.optJSONObject("_station"),
+        station = reply == null ? null : reply.optJSONObject("observation");
+    if (station == null) return;
+    heading("My weather station");
+    TextView value =
+        text(
+            station.optString("name", "Station")
+                + " · "
+                + temperature(number(station, "temperature")),
+            16,
+            true);
+    content.addView(value);
+    TextView note =
+        text(
+            station.optString("provider")
+                + " · observed "
+                + clock(station.optLong("timestamp"))
+                + (Instant.now().getEpochSecond() - station.optLong("timestamp") > 1200
+                    ? " · Out of date"
+                    : ""),
+            11,
+            false);
+    note.setTextColor(muted);
+    content.addView(note);
+    content.addView(
+        button("Station details", () -> FeatureActivity.open(this, "station", place, 0)));
   }
 
   private void drawMap() {
@@ -715,7 +987,19 @@ public class MainActivity extends Activity {
                 .textureMode(true));
     mapView.onCreate(null);
     frame.addView(mapView, new FrameLayout.LayoutParams(-1, -1));
-    content.addView(frame, new LinearLayout.LayoutParams(-1, dp(savedMap ? 310 : 158)));
+    content.addView(
+        frame,
+        new LinearLayout.LayoutParams(
+            -1,
+            dp(
+                fullMap
+                    ? Math.max(
+                        300,
+                        (int)
+                                (getResources().getDisplayMetrics().heightPixels
+                                    / getResources().getDisplayMetrics().density)
+                            - 280)
+                    : savedMap ? 310 : 158)));
     mapView.setOnTouchListener(
         (view, event) -> {
           view.getParent()
@@ -745,6 +1029,7 @@ public class MainActivity extends Activity {
     ownedMap.addOnDidFinishRenderingMapListener(
         fullyRendered -> {
           if (fullyRendered) ownedMap.setTag(Boolean.TRUE);
+          if (mapView == ownedMap && radarPlayback != null) radarPlayback.rendered(fullyRendered);
         });
     mapView.getMapAsync(
         loaded -> {
@@ -793,31 +1078,54 @@ public class MainActivity extends Activity {
                         return true;
                       });
                 } else {
-                  String labels = null;
-                  for (var layer : style.getLayers())
-                    if (layer instanceof org.maplibre.android.style.layers.SymbolLayer) {
-                      labels = layer.getId();
-                      break;
-                    }
-                  for (int i = 0; i < result.radar().size(); i++) {
-                    var radar = result.radar().get(i);
-                    TileSet tiles = new TileSet("2.1.0", radar.template());
-                    tiles.setMinZoom(0f);
-                    tiles.setMaxZoom(7f);
-                    String id = "radar-" + i;
-                    style.addSource(new RasterSource(id, tiles, 256));
-                    RasterLayer layer =
-                        new RasterLayer(id, id)
-                            .withProperties(
-                                PropertyFactory.rasterOpacity(0.001f),
-                                PropertyFactory.rasterFadeDuration(0f));
-                    if (labels == null) style.addLayer(layer);
-                    else style.addLayerBelow(layer, labels);
-                  }
-                  showFrame(Math.max(0, result.radar().size() - 1));
+                  radarPlayback =
+                      new RadarPlayback(
+                          style,
+                          result.radar(),
+                          index -> {
+                            var frameValue = result.radar().get(index);
+                            frameLabel.setText(frameCaption(frameValue));
+                            if (modelNote != null)
+                              modelNote.setText(
+                                  frameValue.forecast()
+                                      ? "NOAA HRRR · run "
+                                          + clock(frameValue.issued())
+                                          + " · simulated reflectivity; timing and placement are"
+                                          + " uncertain"
+                                      : "RainViewer observed radar · blue / green / yellow:"
+                                          + " increasing precipitation intensity");
+                          },
+                          message -> {
+                            if (!message.isEmpty()) {
+                              int shown = radarPlayback == null ? -1 : radarPlayback.shown;
+                              frameLabel.setText(
+                                  (shown >= 0
+                                          ? frameCaption(result.radar().get(shown)) + " · "
+                                          : "")
+                                      + message);
+                            }
+                          });
+                  int nowIndex = 0;
+                  for (int i = 0; i < result.radar().size(); i++)
+                    if (!result.radar().get(i).forecast()) nowIndex = i;
+                  showFrame(nowIndex);
                 }
               });
         });
+    if (!fullMap && !savedMap) {
+      Button expand =
+          button(
+              "Expand",
+              () -> {
+                fullMap = true;
+                render();
+              });
+      expand.setBackground(roundedBackground(dark ? 0xe520272e : 0xecffffff, 16));
+      FrameLayout.LayoutParams position =
+          new FrameLayout.LayoutParams(dp(74), dp(36), Gravity.BOTTOM | Gravity.START);
+      position.setMargins(dp(10), 0, 0, dp(10));
+      frame.addView(expand, position);
+    }
     if (!savedMap) {
       LinearLayout controls = new LinearLayout(this);
       controls.setGravity(Gravity.CENTER_VERTICAL);
@@ -831,12 +1139,15 @@ public class MainActivity extends Activity {
                 else if (radarPlayButton != null) radarPlayButton.setText("Play");
               });
       radarPlayButton = playButton;
-      playButton.setContentDescription("Play or pause observed radar");
+      playButton.setContentDescription("Play or pause observed and model precipitation");
       controls.addView(playButton, new LinearLayout.LayoutParams(dp(48), dp(32)));
       SeekBar slider = new SeekBar(this);
       radarSlider = slider;
       slider.setMax(Math.max(0, result.radar().size() - 1));
-      slider.setProgress(slider.getMax());
+      int nowIndex = 0;
+      for (int i = 0; i < result.radar().size(); i++)
+        if (!result.radar().get(i).forecast()) nowIndex = i;
+      slider.setProgress(nowIndex);
       slider.setProgressTintList(ColorStateList.valueOf(accent));
       slider.setThumbTintList(ColorStateList.valueOf(accent));
       slider.setOnSeekBarChangeListener(
@@ -853,12 +1164,41 @@ public class MainActivity extends Activity {
 
             public void onStopTrackingTouch(SeekBar bar) {}
           });
-      slider.setContentDescription("Observed radar time");
-      controls.addView(slider, new LinearLayout.LayoutParams(0, dp(32), 1));
-      TextView past = text("PAST", 9, false);
+      slider.setContentDescription("Observed to model forecast timeline");
+      FrameLayout timeline = new FrameLayout(this);
+      timeline.addView(slider, new FrameLayout.LayoutParams(-1, dp(32)));
+      if (result.radar().stream().anyMatch(WeatherService.RadarFrame::forecast))
+        timeline.addView(
+            new TimelineMarker(
+                this, (float) nowIndex / Math.max(1, result.radar().size() - 1), muted),
+            new FrameLayout.LayoutParams(-1, dp(40)));
+      controls.addView(timeline, new LinearLayout.LayoutParams(0, dp(40), 1));
+      long ahead =
+          result.radar().isEmpty()
+              ? 0
+              : Math.max(
+                  0,
+                  result.radar().get(result.radar().size() - 1).seconds()
+                      - Instant.now().getEpochSecond());
+      TextView past = text(ahead > 0 ? "+" + (ahead / 3600) + "h" : "PAST", 9, false);
       past.setTextColor(muted);
       controls.addView(past);
       content.addView(controls);
+      modelNote = text("Observed: RainViewer · Forecast: NOAA HRRR / IEM", 10, false);
+      modelNote.setTextColor(muted);
+      modelNote.setPadding(0, dp(3), 0, dp(8));
+      content.addView(modelNote);
+      if (result.radar().stream().noneMatch(WeatherService.RadarFrame::forecast)) {
+        TextView unavailable =
+            text(
+                RadarTimeline.covers(place)
+                    ? "Model futurecast is disabled, stale or unavailable."
+                    : "HRRR model futurecast covers the contiguous US only.",
+                10,
+                false);
+        unavailable.setTextColor(muted);
+        content.addView(unavailable);
+      }
     } else
       content.addView(
           button(
@@ -869,19 +1209,24 @@ public class MainActivity extends Activity {
               }));
   }
 
+  private String frameCaption(WeatherService.RadarFrame frame) {
+    java.time.LocalDate date = Instant.ofEpochSecond(frame.seconds()).atZone(zone()).toLocalDate(),
+        today = java.time.LocalDate.now(zone());
+    String when =
+        date.equals(today)
+            ? clock(frame.seconds())
+            : date.equals(today.plusDays(1))
+                ? "Tomorrow " + clock(frame.seconds())
+                : date.format(DateTimeFormatter.ofPattern("MMM d")) + " " + clock(frame.seconds());
+    return (frame.forecast() ? "Model forecast " : "Observed ") + when;
+  }
+
   private void showFrame(int index) {
     if (result == null || result.radar().isEmpty()) return;
     frameIndex = Math.min(Math.max(index, 0), result.radar().size() - 1);
     if (radarSlider != null) radarSlider.setProgress(frameIndex);
     if (radarPlayButton != null) radarPlayButton.setText(playing ? "Pause" : "Play");
-    if (mapStyle != null)
-      for (int i = 0; i < result.radar().size(); i++) {
-        RasterLayer layer = mapStyle.getLayerAs("radar-" + i);
-        if (layer != null)
-          layer.setProperties(PropertyFactory.rasterOpacity(i == frameIndex ? 0.75f : 0.001f));
-      }
-    if (frameLabel != null)
-      frameLabel.setText("Observed " + clock(result.radar().get(frameIndex).seconds()));
+    if (radarPlayback != null) radarPlayback.seek(frameIndex);
   }
 
   private void refresh() {
@@ -892,11 +1237,18 @@ public class MainActivity extends Activity {
         () -> {
           try {
             var loaded = service.load(selected);
+            try {
+              RainNotifications.update(this, selected, loaded.forecast());
+            } catch (Exception ignored) {
+            }
+            WeatherWidgets.updateAll(this);
+            WeatherJob.schedule(this);
             runOnUiThread(
                 () -> {
                   if (!isDestroyed() && generation == requestGeneration) {
                     result = loaded;
-                    updatedSeconds = Instant.now().getEpochSecond();
+                    updatedSeconds =
+                        loaded.forecast().optLong("_updated", Instant.now().getEpochSecond());
                     render();
                   }
                 });
@@ -911,6 +1263,7 @@ public class MainActivity extends Activity {
   }
 
   private void select(WeatherService.Place next) {
+    RainNotifications.cancel(this);
     place = next;
     result = null;
     savedMap = false;
@@ -1069,11 +1422,12 @@ public class MainActivity extends Activity {
             () ->
                 result == null
                     ? "Refresh to request service access. The owner approves your device on their"
-                          + " iPhone."
+                        + " iPhone."
                     : result.accessMessage().isEmpty()
                         ? "Connected to the server-held Foreca account with this device's read-only"
-                              + " access."
-                        : result.accessMessage())
+                            + " access."
+                        : result.accessMessage(),
+            feature -> FeatureActivity.open(this, feature, place, 0))
         .show();
   }
 
@@ -1096,12 +1450,19 @@ public class MainActivity extends Activity {
               locationListener = null;
               if (!Double.isFinite(location.getLatitude())
                   || !Double.isFinite(location.getLongitude())) return;
+              RainNotifications.cancel(MainActivity.this);
               place =
                   new WeatherService.Place(
-                      "Current location", location.getLatitude(), location.getLongitude());
+                      "Current location",
+                      Math.round(location.getLatitude() * 100) / 100.0,
+                      Math.round(location.getLongitude() * 100) / 100.0);
               result = null;
               try {
-                preferences.edit().putString("selectedPlace", place.json().toString()).apply();
+                preferences
+                    .edit()
+                    .putString("selectedPlace", place.json().toString())
+                    .putString("lastGPSPlace", place.json().toString())
+                    .apply();
               } catch (Exception ignored) {
               }
               render();
@@ -1130,6 +1491,22 @@ public class MainActivity extends Activity {
     } catch (Exception ignored) {
       Toast.makeText(this, "Location unavailable. Choose a city.", Toast.LENGTH_LONG).show();
       refresh();
+    }
+  }
+
+  @Override
+  protected void onNewIntent(android.content.Intent intent) {
+    super.onNewIntent(intent);
+    setIntent(intent);
+    String selected = intent.getStringExtra("widgetPlace");
+    if (selected == null || selected.isEmpty()) return;
+    try {
+      fullMap = false;
+      if (intent.getBooleanExtra("widgetFollowCurrent", false)) {
+        preferences.edit().putBoolean("useCurrent", true).apply();
+        useCurrent();
+      } else select(WeatherService.Place.parse(new JSONObject(selected)));
+    } catch (Exception ignored) {
     }
   }
 
@@ -1163,6 +1540,13 @@ public class MainActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
+    if (preferences != null && preferences.getBoolean("featureChanged", false)) {
+      preferences.edit().putBoolean("featureChanged", false).apply();
+      if (result != null) {
+        render();
+        refresh();
+      }
+    }
     resumed = true;
     if (mapView != null) mapView.onResume();
   }

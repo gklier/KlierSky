@@ -1,9 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <application android:label="KlierSky" android:theme="@style/AppTheme" android:icon="@drawable/ic_sun" android:allowBackup="false" android:usesCleartextTraffic="false" android:supportsRtl="true">
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/><uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/><uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <application android:label="KlierSky" android:theme="@style/AppTheme" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher" android:allowBackup="false" android:usesCleartextTraffic="false" android:supportsRtl="true">
         <activity android:name=".MainActivity" android:exported="true" android:configChanges="uiMode" android:windowSoftInputMode="adjustResize">
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>
+        <activity android:name=".FeatureActivity" android:exported="false" android:windowSoftInputMode="adjustResize"/>
+        <activity android:name=".WidgetConfigureActivity" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/></intent-filter></activity>
+        <receiver android:name=".RainReceiver" android:exported="false"/>
+        <service android:name=".WeatherJob" android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true"/>
+        <receiver android:name=".WeatherWidgets" android:exported="false" android:label="KlierSky current"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_current"/></receiver>
+        <receiver android:name=".HourlyWidget" android:exported="false" android:label="KlierSky hourly"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_hourly"/></receiver>
+        <receiver android:name=".DailyWidget" android:exported="false" android:label="KlierSky daily"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_daily"/></receiver>
     </application>
 </manifest>

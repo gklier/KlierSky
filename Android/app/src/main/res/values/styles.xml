@@ -1,18 +1,18 @@
 <resources>
     <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
-        <item name="android:fontFamily">sans</item><item name="android:colorAccent">#087695</item>
+        <item name="android:fontFamily">sans</item><item name="android:colorAccent">#007AFF</item>
         <item name="android:windowLightStatusBar">true</item><item name="android:statusBarColor">#FAFAFA</item>
         <item name="android:navigationBarColor">#FAFAFA</item><item name="android:windowActionModeOverlay">true</item>
     </style>
     <style name="AppTheme.Dark" parent="android:style/Theme.Material.NoActionBar">
-        <item name="android:fontFamily">sans</item><item name="android:colorAccent">#71BEE7</item>
+        <item name="android:fontFamily">sans</item><item name="android:colorAccent">#64B5F6</item>
         <item name="android:windowLightStatusBar">false</item><item name="android:statusBarColor">#0A0D11</item>
         <item name="android:navigationBarColor">#0A0D11</item><item name="android:windowActionModeOverlay">true</item>
     </style>
     <style name="WeatherSheet" parent="android:style/Theme.Material.Light.Dialog.NoActionBar">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
-        <item name="android:colorAccent">#087695</item>
+        <item name="android:colorAccent">#007AFF</item>
         <item name="android:fontFamily">sans</item>
     </style>
     <style name="WeatherSheet.Dark" parent="android:style/Theme.Material.Dialog.NoActionBar">
@@ -24,5 +24,13 @@
     <style name="WeatherSheetAnimation">
         <item name="android:windowEnterAnimation">@anim/sheet_enter</item>
         <item name="android:windowExitAnimation">@anim/sheet_exit</item>
+    </style>
+    <style name="CalendarPicker" parent="android:style/Widget.Material.DatePicker">
+        <item name="android:headerBackground">@android:color/transparent</item>
+        <item name="android:colorAccent">#007AFF</item>
+    </style>
+    <style name="CalendarPicker.Dark" parent="android:style/Widget.Material.DatePicker">
+        <item name="android:headerBackground">@android:color/transparent</item>
+        <item name="android:colorAccent">#64B5F6</item>
     </style>
 </resources>

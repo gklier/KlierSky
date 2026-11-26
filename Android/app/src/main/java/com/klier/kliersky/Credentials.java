@@ -13,23 +13,30 @@ import javax.crypto.spec.GCMParameterSpec;
 
 /** Device read-only credentials encrypted with a key kept in Android Keystore. */
 final class Credentials {
-  private static final String ALIAS = "KlierSky.deviceAccess";
+  private final String alias;
   private final SharedPreferences preferences;
 
   Credentials(Context context) {
-    preferences = context.getSharedPreferences("private-device-access", Context.MODE_PRIVATE);
+    this(context, false);
+  }
+
+  Credentials(Context context, boolean owner) {
+    alias = owner ? "KlierSky.ownerAccess" : "KlierSky.deviceAccess";
+    preferences =
+        context.getSharedPreferences(
+            owner ? "private-owner-access" : "private-device-access", Context.MODE_PRIVATE);
   }
 
   private SecretKey key() throws Exception {
     KeyStore store = KeyStore.getInstance("AndroidKeyStore");
     store.load(null);
-    if (store.containsAlias(ALIAS))
-      return ((KeyStore.SecretKeyEntry) store.getEntry(ALIAS, null)).getSecretKey();
+    if (store.containsAlias(alias))
+      return ((KeyStore.SecretKeyEntry) store.getEntry(alias, null)).getSecretKey();
     KeyGenerator generator =
         KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
     generator.init(
         new KeyGenParameterSpec.Builder(
-                ALIAS, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+                alias, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
             .build());
@@ -52,6 +59,10 @@ final class Credentials {
     } catch (Exception ignored) {
       return "";
     }
+  }
+
+  void clear() {
+    preferences.edit().remove("record").apply();
   }
 
   void save(String record) throws Exception {

@@ -100,7 +100,7 @@ public class DesignChecks {
                 ((ColorDrawable) root.getChildAt(0).getBackground()).getColor());
           });
       capture("forecast-light.png");
-      waitFor(By.text("Humidity")).click();
+      waitFor(By.desc("Hourly metric Humidity")).click();
       assertTrue(device.hasObject(By.text(java.util.regex.Pattern.compile("[0-9]+%"))));
       waitFor(By.text("Show 24 hours")).click();
       waitFor(By.text("Show 6 hours"));
@@ -116,7 +116,7 @@ public class DesignChecks {
                 ((ColorDrawable) root.getChildAt(0).getBackground()).getColor());
           });
       capture("forecast-dark.png");
-      waitFor(By.text("Temp")).click();
+      waitFor(By.desc("Hourly metric Temp")).click();
       device.waitForIdle();
       capture("forecast-dark-temperature.png");
       device.swipe(550, 1700, 550, 600, 25);
@@ -129,7 +129,7 @@ public class DesignChecks {
   }
 
   @Test
-  public void iphoneStyleSettingsAndAnchoredMenus() {
+  public void iphoneStyleSettingsAndAnchoredMenus() throws Exception {
     try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
       appearance("Light");
       var context = InstrumentationRegistry.getInstrumentation().getTargetContext();
@@ -170,6 +170,10 @@ public class DesignChecks {
       waitFor(By.desc("Last chosen city")).click();
       assertFalse(prefs.getBoolean("useCurrent", true));
       waitFor(By.text("Administration")).click();
+      if (!device.hasObject(By.text("Foreca service access"))) {
+        new UiScrollable(new UiSelector().scrollable(true))
+            .scrollTextIntoView("Foreca service access");
+      }
       waitFor(By.text("Foreca service access"));
       capture("administration-sheet-light.png");
       waitFor(By.text("Foreca service access")).click();

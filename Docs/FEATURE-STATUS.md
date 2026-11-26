@@ -79,3 +79,7 @@ Push alert delivery; rain-start notifications; shared Foreca data for widgets (n
 Implemented simpler Settings/Administration, immediate window appearance switching, direction-aware radar warm-up, 256 MB MapLibre ambient cache plus bounded HTTP cache, removal of synchronous metrics writes during frame changes, saved-location selection map, 48-hour metric forecasts, ERA5 historical comparisons/date browsing, and per-device server-held Tempest/PWS station credentials. Station gateway routes deployed and existing live Foreca verified. No actual Tempest/PWS credential was available for live station validation.
 
 Rain warnings use scheduled local notifications, hourly onset/probability thresholds, opt-in permission, configurable lead, cancellation/deduplication and opportunistic background refresh. Test delivery was observed in simulator Notification Center. All six Swift check groups and 46 gateway tests pass. Simulator history showed real baseline and last-year values; Dark/Light switching was verified while Settings remained open. Physical-device radar performance, station reading and notification delivery remain to verify.
+
+## Android 0.2.0 beta
+
+See [Android feature parity and validation](ANDROID-PARITY.md) for implemented capabilities, release checks and remaining physical-device tests.

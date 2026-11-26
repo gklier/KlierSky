@@ -1,0 +1,6 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="16dp" android:background="@drawable/widget_dark">
+<TextView android:id="@+id/widget_city" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="KlierSky" android:textSize="14sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end"/>
+<TextView android:id="@+id/widget_temperature" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="—" android:textSize="38sp"/>
+<TextView android:id="@+id/widget_body" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:layout_marginTop="6dp" android:textSize="13sp" android:lineSpacingExtra="4dp"/>
+<TextView android:id="@+id/widget_source" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:textSize="10sp" android:maxLines="2" android:ellipsize="end"/>
+</LinearLayout>

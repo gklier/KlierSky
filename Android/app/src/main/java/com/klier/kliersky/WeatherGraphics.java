@@ -10,9 +10,15 @@ final class WeatherGraphics {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final int code, ink;
     private final boolean dark;
+    private final boolean daylight;
 
     Glyph(Context context, int code, int ink, boolean dark) {
+      this(context, code, ink, dark, true);
+    }
+
+    Glyph(Context context, int code, int ink, boolean dark, boolean daylight) {
       super(context);
+      this.daylight = daylight;
       this.code = code;
       this.ink = ink;
       this.dark = dark;
@@ -34,7 +40,7 @@ final class WeatherGraphics {
       }
       boolean clear = code == 0;
       boolean partly = code == 1 || code == 2;
-      if (clear || partly) {
+      if ((clear || partly) && daylight) {
         float x = clear ? 32 : 42, y = clear ? 31 : 22;
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(2.6f);
@@ -52,6 +58,17 @@ final class WeatherGraphics {
         paint.setStyle(Paint.Style.FILL);
         canvas.drawCircle(x, y, 11, paint);
       }
+      if ((clear || partly) && !daylight) {
+        float x = clear ? 32 : 42, y = clear ? 31 : 22;
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(dark ? 0xffe3edf7 : 0xff7e93a6);
+        Path moon = new Path();
+        moon.addCircle(x, y, 17, Path.Direction.CW);
+        Path cut = new Path();
+        cut.addCircle(x + 8, y - 7, 16, Path.Direction.CW);
+        moon.op(cut, Path.Op.DIFFERENCE);
+        canvas.drawPath(moon, paint);
+      }
       if (!clear) {
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(dark ? Color.rgb(219, 228, 237) : Color.rgb(77, 91, 105));
@@ -65,7 +82,20 @@ final class WeatherGraphics {
           paint.setStrokeCap(Paint.Cap.ROUND);
           for (int i = 0; i < 3; i++) canvas.drawLine(20 + 11 * i, 51, 17 + 11 * i, 57, paint);
         }
-        if (code >= 71 && code <= 77 || code == 85 || code == 86) {
+        if (code >= 95) {
+          paint.setStyle(Paint.Style.FILL);
+          paint.setColor(0xfff1b53f);
+          Path bolt = new Path();
+          bolt.moveTo(35, 43);
+          bolt.lineTo(26, 54);
+          bolt.lineTo(33, 54);
+          bolt.lineTo(28, 63);
+          bolt.lineTo(43, 49);
+          bolt.lineTo(36, 49);
+          bolt.close();
+          canvas.drawPath(bolt, paint);
+        }
+        if (code >= 71 && code <= 77 || code == 85 || code == 86 || code == 69) {
           paint.setColor(dark ? 0xffc9e9f7 : 0xff5286a0);
           paint.setStyle(Paint.Style.FILL);
           for (int i = 0; i < 3; i++) canvas.drawCircle(20 + 11 * i, 54, 2, paint);

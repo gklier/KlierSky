@@ -129,3 +129,7 @@ Android design follow-up (November 25): replace the initial alpha’s oversized 
 Android sheet refinement (November 25): keep the approved main screen design. Replace boxy stock preference/location/detail dialogs with rounded floating sheets, system typography, grouped settings, light/dark surfaces and clear selection indicators. Match the iPhone design direction while retaining Android back/outside dismissal, keyboard support and accessibility. Group service access and alpha details under Administration.
 
 Android settings alignment (November 25): owner explicitly requests the iPhone settings design rather than additional Android owner sign-in. Use the actual iPhone form screenshot as the reference: tall edge-to-edge panel, centered inline title and Done control, compact grouped rows, Appearance & units and Locations sections, blue inline values, anchored preference menus, in-panel Administration navigation and back behavior. Preserve the approved main forecast UI. Rain units and 24-hour clock controls must affect real app formatting and persist independently. Do not show unsupported iOS-only feature controls as though they work on Android.
+
+## Android 0.2.0 beta
+
+See [Android feature parity and validation](ANDROID-PARITY.md) for implemented capabilities, release checks and remaining physical-device tests.
